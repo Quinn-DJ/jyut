@@ -49,7 +49,7 @@ function setCurrentSelection(courseId, part, updateURL = true) {
     }
     
     // 验证部分是否存在
-    if (part === 'A' && !course.partA) {
+    if (part === 'A' && (!course.partA || !Array.isArray(course.partA) || course.partA.length === 0)) {
         console.warn(`setCurrentSelection: 课程 ${courseId} 没有 Part A`);
         return false;
     }
@@ -409,15 +409,14 @@ async function initApp() {
     const startTime = performance.now();
     
     try {
-        // 并行加载课程内容数据和扫描课程结构
-        const [contentData, scannedCourses] = await Promise.all([
-            loadCourseContentData(),
-            scanCourseStructure()
-        ]);
+        // 加载课程内容数据（现在包含所有必要信息）
+        const contentData = await loadCourseContentData();
         
-        // 合并扫描结果和内容数据
-        const mergedCourses = mergeCourseData(scannedCourses, contentData);
-        AppState.courses = mergedCourses;
+        // 直接使用内容数据，添加基本验证
+        AppState.courses = contentData.courses.map(course => ({
+            ...course,
+            hasContent: true
+        }));
         
         console.log('最终课程数据:', AppState.courses);
         
@@ -504,6 +503,10 @@ const AudioLazyLoader = {
         try {
             const audio = new Audio();
             
+            // 解析音频路径
+            const resolvedPath = this.resolveAudioPath(audioPath);
+            console.log(`AudioLazyLoader: 解析路径 ${audioPath} -> ${resolvedPath}`);
+            
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
                     reject(new Error('音频加载超时'));
@@ -514,17 +517,19 @@ const AudioLazyLoader = {
                     this.loadedAudios.add(audioPath);
                     this.currentLoads--;
                     this.processQueue();
+                    console.log(`AudioLazyLoader: 音频加载成功 ${resolvedPath}`);
                     resolve(true);
                 };
                 
-                audio.onerror = () => {
+                audio.onerror = (e) => {
                     clearTimeout(timeout);
                     this.currentLoads--;
                     this.processQueue();
-                    reject(new Error(`音频加载失败: ${audioPath}`));
+                    console.error(`AudioLazyLoader: 音频加载失败 ${resolvedPath}`, e);
+                    reject(new Error(`音频加载失败: ${resolvedPath}`));
                 };
                 
-                audio.src = audioPath;
+                audio.src = resolvedPath;
             });
             
         } catch (error) {
@@ -532,6 +537,26 @@ const AudioLazyLoader = {
             this.processQueue();
             throw error;
         }
+    },
+    
+    // 解析音频路径
+    resolveAudioPath(audioPath) {
+        if (!audioPath) {
+            throw new Error('音频路径为空');
+        }
+        
+        // 如果路径已经是完整的相对路径，直接返回
+        if (audioPath.startsWith('Sound/') || audioPath.startsWith('./Sound/')) {
+            return audioPath.startsWith('./') ? audioPath : './' + audioPath;
+        }
+        
+        // 如果是绝对路径，直接返回
+        if (audioPath.startsWith('http://') || audioPath.startsWith('https://') || audioPath.startsWith('/')) {
+            return audioPath;
+        }
+        
+        // 否则假设是相对于Sound目录的路径
+        return './Sound/' + audioPath;
     },
     
     // 处理预加载队列
@@ -738,8 +763,12 @@ const PreloadStrategy = {
         const audioFiles = [];
         
         // 收集Part A音频
-        if (course.partA && course.partA.audioFile) {
-            audioFiles.push(course.partA.audioFile);
+        if (course.partA && Array.isArray(course.partA)) {
+            course.partA.forEach(paragraph => {
+                if (paragraph.audioFile) {
+                    audioFiles.push(paragraph.audioFile);
+                }
+            });
         }
         
         // 收集Part B音频
@@ -783,9 +812,12 @@ const PreloadStrategy = {
             // 如果没有选择课程，预加载第一个课程的Part A
             if (AppState.courses.length > 0) {
                 const firstCourse = AppState.courses[0];
-                if (firstCourse.partA && firstCourse.partA.audioFile) {
-                    console.log('预加载第一个课程的Part A音频');
-                    await AudioLazyLoader.preloadAudio(firstCourse.partA.audioFile);
+                if (firstCourse.partA && Array.isArray(firstCourse.partA) && firstCourse.partA.length > 0) {
+                    const firstParagraph = firstCourse.partA[0];
+                    if (firstParagraph.audioFile) {
+                        console.log('预加载第一个课程的Part A音频');
+                        await AudioLazyLoader.preloadAudio(firstParagraph.audioFile);
+                    }
                 }
             }
         }
@@ -970,42 +1002,15 @@ function createGlobalLoadingIndicator() {
     document.head.appendChild(style);
 }
 
-// 扫描课程结构函数
-async function scanCourseStructure() {
-    try {
-        console.log('开始扫描Sound目录结构...');
-        
-        // 获取Sound目录下的课程文件夹
-        const courses = await discoverCourses();
-        
-        // 为每个课程扫描音频文件
-        const courseData = [];
-        for (const courseFolder of courses) {
-            const courseInfo = await scanCourseFolder(courseFolder);
-            if (courseInfo) {
-                courseData.push(courseInfo);
-            }
-        }
-        
-        // 更新应用状态
-        AppState.courses = courseData;
-        
-        console.log('课程结构扫描完成:', courseData);
-        return courseData;
-        
-    } catch (error) {
-        console.error('扫描课程结构时出错:', error);
-        return [];
-    }
-}
 
-// 发现Sound目录下的课程文件夹
+
+// 发现data目录下的课程文件夹
 async function discoverCourses() {
     // 由于浏览器安全限制，无法直接读取文件系统
-    // 这里使用预定义的课程列表，基于现有的Sound目录结构
+    // 这里使用预定义的课程列表，基于现有的data目录结构
     const knownCourses = ['Class01', 'Class02'];
     
-    // 验证课程文件夹是否存在（通过尝试加载音频文件）
+    // 验证课程文件夹是否存在（通过尝试加载JSON文件）
     const validCourses = [];
     for (const course of knownCourses) {
         const isValid = await validateCourseFolder(course);
@@ -1017,12 +1022,12 @@ async function discoverCourses() {
     return validCourses;
 }
 
-// 验证课程文件夹是否存在有效的音频文件
+// 验证课程文件夹是否存在有效的JSON文件
 async function validateCourseFolder(courseFolder) {
     try {
-        // 尝试检查Part A音频文件是否存在
-        const partAPath = `Sound/${courseFolder}/a.opus`;
-        const exists = await checkAudioFileExists(partAPath);
+        // 尝试检查courses.json文件是否存在
+        const jsonPath = `data/${courseFolder}/courses.json`;
+        const exists = await checkJSONFileExists(jsonPath);
         return exists;
     } catch (error) {
         console.warn(`课程文件夹 ${courseFolder} 验证失败:`, error);
@@ -1053,71 +1058,18 @@ function checkAudioFileExists(audioPath) {
     });
 }
 
-// 扫描单个课程文件夹
-async function scanCourseFolder(courseFolder) {
+// 检查JSON文件是否存在
+async function checkJSONFileExists(jsonPath) {
     try {
-        console.log(`扫描课程文件夹: ${courseFolder}`);
-        
-        const courseData = {
-            id: courseFolder,
-            name: generateCourseName(courseFolder),
-            partA: null,
-            partB: []
-        };
-        
-        // 扫描Part A音频文件
-        const partAPath = `Sound/${courseFolder}/a.opus`;
-        const partAExists = await checkAudioFileExists(partAPath);
-        
-        if (partAExists) {
-            courseData.partA = {
-                hasAudio: true,
-                audioFile: partAPath
-            };
-        }
-        
-        // 扫描Part B音频文件
-        const partBFiles = await scanPartBFiles(courseFolder);
-        courseData.partB = partBFiles;
-        
-        // 只有当至少有Part A或Part B文件时才返回课程数据
-        if (courseData.partA || courseData.partB.length > 0) {
-            return courseData;
-        }
-        
-        return null;
-        
+        const response = await fetch(jsonPath);
+        return response.ok;
     } catch (error) {
-        console.error(`扫描课程文件夹 ${courseFolder} 时出错:`, error);
-        return null;
+        console.warn(`检查JSON文件失败: ${jsonPath}`, error);
+        return false;
     }
 }
 
-// 扫描Part B音频文件
-async function scanPartBFiles(courseFolder) {
-    const partBFiles = [];
-    
-    // 尝试查找b_1.opus, b_2.opus等文件
-    // 由于浏览器限制，我们需要按顺序尝试
-    for (let i = 1; i <= 10; i++) { // 最多尝试10个文件
-        const fileName = `b_${i}.opus`;
-        const filePath = `Sound/${courseFolder}/${fileName}`;
-        
-        const exists = await checkAudioFileExists(filePath);
-        if (exists) {
-            partBFiles.push({
-                paragraph: i,
-                audioFile: filePath,
-                hasAudio: true
-            });
-        } else {
-            // 如果连续的文件不存在，停止扫描
-            break;
-        }
-    }
-    
-    return partBFiles;
-}
+
 
 // 生成课程名称
 function generateCourseName(courseFolder) {
@@ -1147,15 +1099,24 @@ async function loadCourseContentData() {
     try {
         console.log('加载课程内容数据...');
         
-        const response = await fetch('data/courses.json');
-        if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status}`);
+        // 发现data目录下的课程
+        const courseIds = await discoverCourses();
+        const courses = [];
+        
+        // 为每个课程加载JSON数据
+        for (const courseId of courseIds) {
+            try {
+                const courseData = await loadSingleCourseData(courseId);
+                if (courseData) {
+                    courses.push(courseData);
+                }
+            } catch (error) {
+                console.warn(`加载课程 ${courseId} 数据失败:`, error);
+            }
         }
         
-        const data = await response.json();
-        
         // 验证数据格式
-        const validatedData = validateCourseData(data);
+        const validatedData = validateCourseData({ courses });
         
         // 将数据存储到Map中以便快速查找
         validatedData.courses.forEach(course => {
@@ -1172,6 +1133,25 @@ async function loadCourseContentData() {
         return {
             courses: []
         };
+    }
+}
+
+// 加载单个课程的数据
+async function loadSingleCourseData(courseId) {
+    try {
+        const response = await fetch(`data/${courseId}/courses.json`);
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+        
+        const courseData = await response.json();
+        console.log(`课程 ${courseId} 数据加载成功:`, courseData);
+        
+        return courseData;
+        
+    } catch (error) {
+        console.error(`加载课程 ${courseId} 数据失败:`, error);
+        return null;
     }
 }
 
@@ -1226,7 +1206,7 @@ function validateSingleCourse(course) {
     }
     
     // 至少要有Part A或Part B
-    if (!course.partA && (!course.partB || course.partB.length === 0)) {
+    if ((!course.partA || course.partA.length === 0) && (!course.partB || course.partB.length === 0)) {
         throw new Error('课程必须包含Part A或Part B内容');
     }
     
@@ -1235,15 +1215,21 @@ function validateSingleCourse(course) {
 
 // 验证Part A数据
 function validatePartAData(partA) {
-    if (!partA || typeof partA !== 'object') {
+    // Part A现在是段落数组，类似于Part B
+    if (!Array.isArray(partA)) {
         return false;
     }
     
-    return (
-        typeof partA.originalText === 'string' &&
-        typeof partA.jyutping === 'string' &&
-        typeof partA.audioFile === 'string'
-    );
+    return partA.every(paragraph => {
+        return (
+            paragraph &&
+            typeof paragraph === 'object' &&
+            typeof paragraph.paragraph === 'number' &&
+            typeof paragraph.originalText === 'string' &&
+            typeof paragraph.jyutping === 'string' &&
+            (typeof paragraph.audioFile === 'string' || paragraph.audioFile === undefined)
+        );
+    });
 }
 
 // 验证Part B数据
@@ -1259,7 +1245,7 @@ function validatePartBData(partB) {
             typeof paragraph.paragraph === 'number' &&
             typeof paragraph.originalText === 'string' &&
             typeof paragraph.jyutping === 'string' &&
-            typeof paragraph.audioFile === 'string'
+            (typeof paragraph.audioFile === 'string' || paragraph.audioFile === undefined)
         );
     });
 }
@@ -1283,7 +1269,7 @@ function getPartContent(courseId, part) {
     }
     
     if (part === 'A') {
-        return courseContent.partA || null;
+        return courseContent.partA || [];
     } else if (part === 'B') {
         return courseContent.partB || [];
     }
@@ -1292,55 +1278,7 @@ function getPartContent(courseId, part) {
     return null;
 }
 
-// 合并扫描结果和内容数据
-function mergeCourseData(scannedCourses, contentData) {
-    const mergedCourses = [];
-    
-    scannedCourses.forEach(scannedCourse => {
-        const contentCourse = AppState.courseContent.get(scannedCourse.id);
-        
-        if (contentCourse) {
-            // 合并扫描结果和内容数据
-            const mergedCourse = {
-                ...scannedCourse,
-                name: contentCourse.name,
-                hasContent: true
-            };
-            
-            // 更新Part A信息
-            if (scannedCourse.partA && contentCourse.partA) {
-                mergedCourse.partA = {
-                    ...scannedCourse.partA,
-                    hasContent: true
-                };
-            }
-            
-            // 更新Part B信息
-            if (scannedCourse.partB.length > 0 && contentCourse.partB) {
-                mergedCourse.partB = scannedCourse.partB.map(scannedParagraph => {
-                    const contentParagraph = contentCourse.partB.find(
-                        p => p.paragraph === scannedParagraph.paragraph
-                    );
-                    
-                    return {
-                        ...scannedParagraph,
-                        hasContent: !!contentParagraph
-                    };
-                });
-            }
-            
-            mergedCourses.push(mergedCourse);
-        } else {
-            // 只有音频文件，没有内容数据
-            mergedCourses.push({
-                ...scannedCourse,
-                hasContent: false
-            });
-        }
-    });
-    
-    return mergedCourses;
-}
+
 
 // ===== 错误处理和工具函数 =====
 
@@ -1369,8 +1307,12 @@ function checkCourseDataIntegrity() {
         }
         
         // 检查Part A
-        if (course.partA && course.partA.hasAudio && !course.partA.hasContent) {
-            issues.push(`课程 ${course.id} Part A 有音频但缺少文本内容`);
+        if (course.partA && Array.isArray(course.partA)) {
+            course.partA.forEach(paragraph => {
+                if (paragraph.audioFile && (!paragraph.originalText || !paragraph.jyutping)) {
+                    issues.push(`课程 ${course.id} Part A 第${paragraph.paragraph}段有音频但缺少文本内容`);
+                }
+            });
         }
         
         // 检查Part B
@@ -1407,8 +1349,9 @@ function getCourseStatistics() {
             stats.coursesWithContent++;
         }
         
-        if (course.partA) {
+        if (course.partA && Array.isArray(course.partA) && course.partA.length > 0) {
             stats.totalPartA++;
+            stats.totalParagraphs += course.partA.length;
         }
         
         if (course.partB && course.partB.length > 0) {
@@ -1450,8 +1393,12 @@ function displayDebugInfo() {
                 <ul>
         `;
         
-        if (course.partA) {
-            debugHTML += `<li>Part A: 音频=${course.partA.hasAudio ? '是' : '否'}, 内容=${course.partA.hasContent ? '是' : '否'}</li>`;
+        if (course.partA && Array.isArray(course.partA)) {
+            debugHTML += `<li>Part A: ${course.partA.length}段`;
+            course.partA.forEach(p => {
+                debugHTML += ` [${p.paragraph}: 音频=${p.audioFile ? '是' : '否'}, 内容=${p.originalText && p.jyutping ? '是' : '否'}]`;
+            });
+            debugHTML += `</li>`;
         }
         
         if (course.partB && course.partB.length > 0) {
@@ -1549,12 +1496,12 @@ function createPartButton(course, part) {
     
     // 检查是否有该部分的内容
     const hasContent = isPartA ? 
-        (partData && partData.hasAudio) : 
+        (partData && Array.isArray(partData) && partData.length > 0) : 
         (partData && partData.length > 0);
     
     const hasTextContent = isPartA ?
-        (partData && partData.hasContent) :
-        (partData && partData.some(p => p.hasContent));
+        (partData && Array.isArray(partData) && partData.every(p => p.originalText && p.jyutping)) :
+        (partData && partData.some(p => p.originalText && p.jyutping));
     
     let buttonClass = 'part-btn';
     let buttonText = `Part ${part}`;
@@ -1589,10 +1536,13 @@ function calculateCourseStatus(course) {
     let completeParts = 0;
     
     // 检查Part A
-    if (course.partA) {
+    if (course.partA && Array.isArray(course.partA) && course.partA.length > 0) {
         totalParts++;
-        if (course.partA.hasAudio) hasAudio = true;
-        if (course.partA.hasContent) {
+        const hasPartAAudio = course.partA.some(p => p.audioFile);
+        const hasPartAText = course.partA.every(p => p.originalText && p.jyutping);
+        
+        if (hasPartAAudio) hasAudio = true;
+        if (hasPartAText) {
             hasText = true;
             completeParts++;
         }
@@ -1997,23 +1947,41 @@ function renderNewContent(courseId, part, contentContainer) {
  * 停止所有音频播放
  */
 function stopAllAudioPlayback() {
-    // 获取所有音频控件
-    const audioControls = document.querySelectorAll('.audio-controls[data-audio-id]');
+    let stoppedCount = 0;
     
+    // 使用AudioPlayerManager停止所有播放器
+    if (window.AudioPlayerManager) {
+        AudioPlayerManager.players.forEach((player, audioId) => {
+            if (player.currentState === 'playing' || player.currentState === 'paused') {
+                try {
+                    player.stop();
+                    stoppedCount++;
+                    console.log(`全局停止音频播放器: ${audioId}`);
+                } catch (error) {
+                    console.warn(`停止音频播放失败: ${audioId}`, error);
+                }
+            }
+        });
+    }
+    
+    // 备用方案：直接操作DOM中的音频控件
+    const audioControls = document.querySelectorAll('.audio-controls[data-audio-id]');
     audioControls.forEach(control => {
         const audioId = control.dataset.audioId;
         if (audioId && window.AudioPlayerManager) {
             const player = AudioPlayerManager.getPlayer(audioId);
-            if (player && player.audio) {
+            if (player && player.audio && (player.currentState === 'playing' || player.currentState === 'paused')) {
                 try {
                     player.stop();
-                    console.log(`停止音频播放: ${audioId}`);
+                    stoppedCount++;
                 } catch (error) {
                     console.warn(`停止音频播放失败: ${audioId}`, error);
                 }
             }
         }
     });
+    
+    console.log(`已停止 ${stoppedCount} 个音频播放器`);
 }
 
 /**
@@ -2134,95 +2102,28 @@ function showContentError(container, message) {
 
 // 渲染Part A内容
 function renderPartAContent(container, course, contentData) {
-    const hasAudio = course.partA && course.partA.hasAudio;
-    let audioFile = hasAudio ? course.partA.audioFile : null;
+    const partAData = contentData || [];
     
-    // 如果没有预设的音频文件路径，尝试动态生成
-    if (hasAudio && !audioFile) {
-        audioFile = generateAudioFilePath(course.id, 'A');
-    }
-    
-    // 验证音频文件路径
-    const validAudioFile = audioFile && validateAudioFilePath(audioFile);
-    
-    let originalText = '暂无原文内容';
-    let jyutpingText = '暂无粤拼标注';
-    
-    if (contentData) {
-        originalText = contentData.originalText || originalText;
-        jyutpingText = contentData.jyutping || jyutpingText;
-    }
-    
-    const audioId = `part-a-${course.id}`;
-    
-    container.innerHTML = `
-        <div class="part-a-content">
-            <div class="part-header">
-                <h3 class="part-title">${course.name} - Part A</h3>
-                <span class="part-type">单段内容</span>
-            </div>
-            
-            <div class="text-content">
-                <div class="original-text">${originalText}</div>
-                <div class="jyutping-text">${jyutpingText}</div>
-            </div>
-            
-            ${validAudioFile ? createAudioControls(audioFile, audioId) : createNoAudioMessage('Part A')}
-        </div>
-    `;
-    
-    // 添加音频控件进入动画
-    setTimeout(() => {
-        addAudioControlsEnterAnimations(container);
-    }, 50);
-    
-    // 初始化音频控件
-    if (validAudioFile) {
-        // 使用setTimeout确保DOM元素已经渲染
-        setTimeout(() => {
-            initAudioControls(audioId, audioFile);
-        }, 100);
-    }
-}
-
-// 渲染Part B内容
-function renderPartBContent(container, course, contentData) {
-    const partBData = course.partB || [];
-    
-    if (partBData.length === 0) {
-        showContentError(container, 'Part B 没有可用内容');
+    if (partAData.length === 0) {
+        showContentError(container, 'Part A 没有可用内容');
         return;
     }
     
     let paragraphsHTML = '';
     const audioInitTasks = []; // 存储音频初始化任务
     
-    partBData.forEach((paragraphData, index) => {
+    partAData.forEach((paragraphData, index) => {
         const paragraphNum = paragraphData.paragraph || (index + 1);
-        const hasAudio = paragraphData.hasAudio;
-        let audioFile = hasAudio ? paragraphData.audioFile : null;
-        
-        // 如果没有预设的音频文件路径，尝试动态生成
-        if (hasAudio && !audioFile) {
-            audioFile = generateAudioFilePath(course.id, 'B', paragraphNum);
-        }
+        const audioFile = paragraphData.audioFile;
         
         // 验证音频文件路径
         const validAudioFile = audioFile && validateAudioFilePath(audioFile);
         
         // 获取文本内容
-        let originalText = '暂无原文内容';
-        let jyutpingText = '暂无粤拼标注';
+        const originalText = paragraphData.originalText || '暂无原文内容';
+        const jyutpingText = paragraphData.jyutping || '暂无粤拼标注';
         
-        if (contentData && Array.isArray(contentData)) {
-            const textData = contentData.find(p => p.paragraph === paragraphNum);
-            if (textData) {
-                originalText = textData.originalText || originalText;
-                jyutpingText = textData.jyutping || jyutpingText;
-            }
-        }
-        
-        const audioId = `part-b-${course.id}-${paragraphNum}`;
+        const audioId = `part-a-${course.id}-${paragraphNum}`;
         
         paragraphsHTML += `
             <div class="paragraph-item">
@@ -2249,10 +2150,10 @@ function renderPartBContent(container, course, contentData) {
     });
     
     container.innerHTML = `
-        <div class="part-b-content">
+        <div class="part-a-content">
             <div class="part-header">
-                <h3 class="part-title">${course.name} - Part B</h3>
-                <span class="part-type">${partBData.length}段内容</span>
+                <h3 class="part-title">${course.name} - Part A</h3>
+                <span class="part-type">${partAData.length}段内容</span>
             </div>
             
             <div class="paragraph-list">
@@ -2276,6 +2177,121 @@ function renderPartBContent(container, course, contentData) {
             });
         }, 100);
     }
+}
+
+// 渲染Part B内容
+function renderPartBContent(container, course, contentData) {
+    // 确保 contentData 是数组格式
+    const partBData = Array.isArray(contentData) ? contentData : [];
+    
+    // 验证课程对象
+    if (!course || !course.id || !course.name) {
+        showContentError(container, 'Part B 课程信息无效');
+        return;
+    }
+    
+    if (partBData.length === 0) {
+        showContentError(container, 'Part B 没有可用内容');
+        return;
+    }
+    
+    let paragraphsHTML = '';
+    const audioInitTasks = []; // 存储音频初始化任务
+    
+    partBData.forEach((paragraphData, index) => {
+        // 验证段落数据结构
+        if (!paragraphData || typeof paragraphData !== 'object') {
+            console.warn(`Part B 段落 ${index + 1} 数据格式无效:`, paragraphData);
+            return;
+        }
+        
+        // 获取段落编号，优先使用数据中的编号，否则使用索引+1
+        const paragraphNum = (typeof paragraphData.paragraph === 'number' && paragraphData.paragraph > 0) 
+            ? paragraphData.paragraph 
+            : (index + 1);
+        
+        const audioFile = paragraphData.audioFile;
+        
+        // 验证音频文件路径
+        const validAudioFile = audioFile && validateAudioFilePath(audioFile);
+        
+        // 获取文本内容，确保有默认值
+        const originalText = (paragraphData.originalText && paragraphData.originalText.trim()) 
+            ? paragraphData.originalText.trim() 
+            : '暂无原文内容';
+        const jyutpingText = (paragraphData.jyutping && paragraphData.jyutping.trim()) 
+            ? paragraphData.jyutping.trim() 
+            : '暂无粤拼标注';
+        
+        // 生成唯一的音频ID
+        const audioId = `part-b-${course.id}-${paragraphNum}`;
+        
+        paragraphsHTML += `
+            <div class="paragraph-item" data-paragraph="${paragraphNum}">
+                <div class="paragraph-header">
+                    <div class="paragraph-number">${paragraphNum}</div>
+                </div>
+                
+                <div class="text-content">
+                    <div class="original-text">${originalText}</div>
+                    <div class="jyutping-text">${jyutpingText}</div>
+                </div>
+                
+                ${validAudioFile ? createAudioControls(audioFile, audioId) : createNoAudioMessage(`第${paragraphNum}段`)}
+            </div>
+        `;
+        
+        // 记录需要初始化的音频控件
+        if (validAudioFile) {
+            audioInitTasks.push({
+                audioId: audioId,
+                audioFile: audioFile,
+                paragraphNum: paragraphNum
+            });
+        }
+    });
+    
+    // 如果没有有效的段落，显示错误
+    if (!paragraphsHTML.trim()) {
+        showContentError(container, 'Part B 没有有效的段落内容');
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="part-b-content">
+            <div class="part-header">
+                <h3 class="part-title">${course.name} - Part B</h3>
+                <span class="part-type">${partBData.length}段内容</span>
+            </div>
+            
+            <div class="paragraph-list">
+                ${paragraphsHTML}
+            </div>
+        </div>
+    `;
+    
+    // 添加段落进入动画
+    setTimeout(() => {
+        addParagraphEnterAnimations(container);
+        addAudioControlsEnterAnimations(container);
+    }, 50);
+    
+    // 初始化所有音频控件
+    if (audioInitTasks.length > 0) {
+        // 使用setTimeout确保DOM元素已经渲染
+        setTimeout(() => {
+            audioInitTasks.forEach(task => {
+                try {
+                    initAudioControls(task.audioId, task.audioFile);
+                    console.log(`Part B 音频控件初始化成功: 段落${task.paragraphNum}, ID: ${task.audioId}`);
+                } catch (error) {
+                    console.error(`Part B 音频控件初始化失败: 段落${task.paragraphNum}`, error);
+                }
+            });
+        }, 100);
+    }
+    
+    console.log(`Part B 渲染完成: ${course.name}, ${partBData.length} 个段落, ${audioInitTasks.length} 个音频控件`);
 }
 
 // 创建音频控件HTML
@@ -2527,22 +2543,29 @@ class AudioPlayer {
         }
         
         try {
+            // 首先停止所有其他音频播放
+            AudioPlayerManager.stopOtherPlayers(this.audioId);
+            
             this.setState('loading');
             this.updateStatus('正在加载音频...');
             
             // 记录开始时间用于性能监控
             const startTime = performance.now();
             
+            // 解析并验证音频文件路径
+            const resolvedAudioPath = this.resolveAudioFilePath(this.audioFile);
+            console.log(`解析音频路径: ${this.audioFile} -> ${resolvedAudioPath}`);
+            
             // 使用懒加载系统加载音频
-            const loadSuccess = await AudioLazyLoader.lazyLoadAudio(this.audioFile);
+            const loadSuccess = await AudioLazyLoader.lazyLoadAudio(resolvedAudioPath);
             
             if (!loadSuccess) {
                 throw new Error('音频懒加载失败');
             }
             
             // 设置音频源（如果还没有设置）
-            if (!this.audio.src || this.audio.src !== this.audioFile) {
-                this.audio.src = this.audioFile;
+            if (!this.audio.src || !this.audio.src.endsWith(resolvedAudioPath)) {
+                this.audio.src = resolvedAudioPath;
             }
             
             // 等待音频准备就绪
@@ -2553,8 +2576,9 @@ class AudioPlayer {
             
             // 记录性能指标
             const loadTime = performance.now() - startTime;
-            PerformanceMonitor.recordAudioLoadTime(this.audioFile, loadTime);
+            PerformanceMonitor.recordAudioLoadTime(resolvedAudioPath, loadTime);
             
+            console.log(`音频播放成功: ${this.audioId} - ${resolvedAudioPath}`);
             return true;
             
         } catch (error) {
@@ -2563,6 +2587,29 @@ class AudioPlayer {
             this.handleError(this.getPlayErrorMessage(error));
             return false;
         }
+    }
+    
+    /**
+     * 解析音频文件路径
+     * 确保路径格式正确，支持新的数据结构
+     */
+    resolveAudioFilePath(audioFile) {
+        if (!audioFile) {
+            throw new Error('音频文件路径为空');
+        }
+        
+        // 如果路径已经是完整的相对路径，直接返回
+        if (audioFile.startsWith('Sound/') || audioFile.startsWith('./Sound/')) {
+            return audioFile.startsWith('./') ? audioFile : './' + audioFile;
+        }
+        
+        // 如果是绝对路径，直接返回
+        if (audioFile.startsWith('http://') || audioFile.startsWith('https://') || audioFile.startsWith('/')) {
+            return audioFile;
+        }
+        
+        // 否则假设是相对于Sound目录的路径
+        return './Sound/' + audioFile;
     }
     
     /**
@@ -2964,11 +3011,22 @@ const AudioPlayerManager = {
      * 停止所有其他播放器
      */
     stopOtherPlayers(excludeId) {
+        let stoppedCount = 0;
         this.players.forEach((player, audioId) => {
-            if (audioId !== excludeId && player.currentState === 'playing') {
-                player.stop();
+            if (audioId !== excludeId && (player.currentState === 'playing' || player.currentState === 'paused')) {
+                try {
+                    player.stop();
+                    stoppedCount++;
+                    console.log(`停止音频播放器: ${audioId}`);
+                } catch (error) {
+                    console.warn(`停止音频播放器失败: ${audioId}`, error);
+                }
             }
         });
+        
+        if (stoppedCount > 0) {
+            console.log(`已停止 ${stoppedCount} 个其他音频播放器`);
+        }
     },
     
     /**
@@ -3443,8 +3501,20 @@ async function preCheckAudioFile(audioFile) {
         };
     }
     
+    // 解析音频文件路径
+    let resolvedPath;
+    try {
+        resolvedPath = resolveAudioFilePath(audioFile);
+        console.log(`预检查音频路径: ${audioFile} -> ${resolvedPath}`);
+    } catch (error) {
+        return {
+            valid: false,
+            error: `路径解析失败: ${error.message}`
+        };
+    }
+    
     // 检查文件扩展名
-    if (!validateAudioFilePath(audioFile)) {
+    if (!validateAudioFilePath(resolvedPath)) {
         return {
             valid: false,
             error: '不支持的音频文件格式'
@@ -3452,14 +3522,35 @@ async function preCheckAudioFile(audioFile) {
     }
     
     // 检查文件是否存在
-    const checkResult = await checkAudioFileExistsEnhanced(audioFile);
+    const checkResult = await checkAudioFileExistsEnhanced(resolvedPath);
     
     return {
         valid: checkResult.exists && checkResult.canPlay,
         error: checkResult.error,
         duration: checkResult.duration,
-        canPlay: checkResult.canPlay
+        canPlay: checkResult.canPlay,
+        resolvedPath: resolvedPath
     };
+}
+
+// 全局音频路径解析函数
+function resolveAudioFilePath(audioFile) {
+    if (!audioFile) {
+        throw new Error('音频文件路径为空');
+    }
+    
+    // 如果路径已经是完整的相对路径，直接返回
+    if (audioFile.startsWith('Sound/') || audioFile.startsWith('./Sound/')) {
+        return audioFile.startsWith('./') ? audioFile : './' + audioFile;
+    }
+    
+    // 如果是绝对路径，直接返回
+    if (audioFile.startsWith('http://') || audioFile.startsWith('https://') || audioFile.startsWith('/')) {
+        return audioFile;
+    }
+    
+    // 否则假设是相对于Sound目录的路径
+    return './Sound/' + audioFile;
 }
 
 // 用户友好的错误提示
@@ -4108,6 +4199,21 @@ function validateAudioFilePath(audioFile) {
     
     if (!hasValidExtension) {
         console.warn(`音频文件扩展名无效: ${audioFile}`);
+        return false;
+    }
+    
+    // 验证路径格式 - 支持新的数据结构路径
+    const validPathPatterns = [
+        /^Sound\/Class\d+\/[ab]_\d+\.(opus|mp3|wav|ogg)$/i,  // 新格式: Sound/Class01/a_1.opus
+        /^\.\/Sound\/Class\d+\/[ab]_\d+\.(opus|mp3|wav|ogg)$/i,  // 带./前缀
+        /^https?:\/\/.+\.(opus|mp3|wav|ogg)$/i,  // HTTP URL
+        /^\/.*\.(opus|mp3|wav|ogg)$/i  // 绝对路径
+    ];
+    
+    const isValidPath = validPathPatterns.some(pattern => pattern.test(audioFile));
+    
+    if (!isValidPath) {
+        console.warn(`音频文件路径格式无效: ${audioFile}`);
         return false;
     }
     
