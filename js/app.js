@@ -894,8 +894,8 @@ function testAudioPathResolution() {
         const hashPath = window.location.hash.substring(1);
         const hashSegments = hashPath.split('/').filter(segment => segment.length > 0);
         console.log(`Hash路径段数: ${hashSegments.length} (${hashSegments.join(', ')})`);
-        console.log(`实际使用的相对路径: ../`);
-        console.log(`示例: 如果hash是 #Class01/A，则音频路径应该是 ../Sound/Class01/a_1.opus`);
+        console.log(`实际使用的路径前缀: (无前缀)`);
+        console.log(`示例: 如果hash是 #Class01/A，则音频路径应该是 Sound/Class01/a_1.opus`);
     }
 
     testPaths.forEach(path => {
@@ -3693,49 +3693,9 @@ function resolveAudioFilePath(audioFile) {
 
 // 获取当前页面的基础路径
 function getBasePath() {
-    const currentPath = window.location.pathname;
-    const currentOrigin = window.location.origin;
-    const currentHash = window.location.hash;
-
-    // 检测是否为GitHub Pages部署
-    const isGitHubPages = currentOrigin.includes('github.io');
-
-    if (isGitHubPages) {
-        // 对于GitHub Pages，需要考虑hash路由的影响
-        if (currentPath.includes('/jyut')) {
-            // 如果有hash路由（如 #Class01/A），使用相对路径
-            if (currentHash && currentHash.includes('/')) {
-                // 对于 #Class01/A 这样的路由，需要 ../
-                return '../';
-            }
-
-            // 没有hash路由时，使用当前目录
-            return './';
-        }
-        // 如果没有找到 /jyut，假设在根目录
-        return './';
-    }
-
-    // 对于本地开发或其他部署
-    if (currentPath === '/' || currentPath === '/index.html') {
-        // 如果有hash路由，需要相对路径
-        if (currentHash && currentHash.includes('/')) {
-            // 对于本地开发，hash路由需要 ../
-            return '../';
-        }
-        return './';
-    }
-
-    // 对于子目录部署，使用相对路径
-    const pathSegments = currentPath.split('/').filter(segment => segment.length > 0);
-    let backSteps = pathSegments.length > 1 ? pathSegments.length - 1 : 0;
-
-    // 如果有hash路由，需要额外的回退步数
-    if (currentHash && currentHash.includes('/')) {
-        backSteps += 1; // hash路由增加一层（对应 ../）
-    }
-
-    return backSteps > 0 ? '../'.repeat(backSteps) : './';
+    // 简化路径解析：直接返回空字符串，让音频路径直接使用 Sound/ 前缀
+    // 这样无论是否有hash路由，都能正确找到音频文件
+    return '';
 }
 
 // 用户友好的错误提示
