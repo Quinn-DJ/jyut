@@ -1036,18 +1036,39 @@ function createGlobalLoadingIndicator() {
 
 // 发现data目录下的课程文件夹
 async function discoverCourses() {
-    // 由于浏览器安全限制，无法直接读取文件系统
-    // 这里使用预定义的课程列表，基于现有的data目录结构
-    const knownCourses = ['Class01', 'Class02'];
+    console.log('开始发现课程...');
 
-    // 验证课程文件夹是否存在（通过尝试加载JSON文件）
-    const validCourses = [];
-    for (const course of knownCourses) {
-        const isValid = await validateCourseFolder(course);
-        if (isValid) {
-            validCourses.push(course);
-        }
-    }
+    // 由于浏览器安全限制，无法直接读取文件系统
+    // 使用智能扫描策略：尝试常见的课程命名模式
+    const coursePatterns = [
+        // 标准课程模式：Class01, Class02, ...
+        ...Array.from({ length: 20 }, (_, i) => `Class${String(i + 1).padStart(2, '0')}`),
+        // 其他可能的命名模式
+        ...Array.from({ length: 10 }, (_, i) => `Lesson${String(i + 1).padStart(2, '0')}`),
+        ...Array.from({ length: 10 }, (_, i) => `Unit${String(i + 1).padStart(2, '0')}`),
+        // 简单数字模式
+        ...Array.from({ length: 10 }, (_, i) => `${i + 1}`),
+    ];
+
+    console.log(`尝试发现课程，检查 ${coursePatterns.length} 个可能的课程模式...`);
+
+    // 并发验证课程文件夹，提高性能
+    const validationPromises = coursePatterns.map(async (courseId) => {
+        const isValid = await validateCourseFolder(courseId);
+        return isValid ? courseId : null;
+    });
+
+    // 等待所有验证完成
+    const validationResults = await Promise.allSettled(validationPromises);
+
+    // 收集有效的课程
+    const validCourses = validationResults
+        .filter(result => result.status === 'fulfilled' && result.value !== null)
+        .map(result => result.value)
+        .sort(); // 按字母顺序排序
+
+    // 生成详细的发现报告
+    generateCourseDiscoveryReport(validCourses, coursePatterns.length);
 
     return validCourses;
 }
@@ -1055,12 +1076,26 @@ async function discoverCourses() {
 // 验证课程文件夹是否存在有效的JSON文件
 async function validateCourseFolder(courseFolder) {
     try {
-        // 尝试检查courses.json文件是否存在
         const jsonPath = `data/${courseFolder}/courses.json`;
-        const exists = await checkJSONFileExists(jsonPath);
-        return exists;
+
+        // 检查JSON文件是否存在并可访问
+        const jsonExists = await checkJSONFileExists(jsonPath);
+        if (!jsonExists) {
+            return false;
+        }
+
+        // 进一步验证JSON文件内容的基本结构
+        const isValidStructure = await validateCourseJSONStructure(jsonPath);
+        if (!isValidStructure) {
+            console.warn(`课程 ${courseFolder} 的JSON文件结构无效`);
+            return false;
+        }
+
+        console.log(`✅ 课程 ${courseFolder} 验证通过`);
+        return true;
+
     } catch (error) {
-        console.warn(`课程文件夹 ${courseFolder} 验证失败:`, error);
+        console.warn(`❌ 课程文件夹 ${courseFolder} 验证失败:`, error.message);
         return false;
     }
 }
@@ -1091,12 +1126,153 @@ function checkAudioFileExists(audioPath) {
 // 检查JSON文件是否存在
 async function checkJSONFileExists(jsonPath) {
     try {
-        const response = await fetch(jsonPath);
-        return response.ok;
+        const response = await fetch(jsonPath, {
+            method: 'HEAD', // 使用HEAD请求减少网络传输
+            cache: 'no-cache' // 确保获取最新状态
+        });
+
+        if (response.ok) {
+            return true;
+        } else {
+            // 记录具体的HTTP错误状态
+            if (response.status === 404) {
+                // 404是正常的，不需要警告
+                return false;
+            } else {
+                console.warn(`JSON文件访问异常: ${jsonPath} (状态码: ${response.status})`);
+                return false;
+            }
+        }
     } catch (error) {
-        console.warn(`检查JSON文件失败: ${jsonPath}`, error);
+        // 网络错误或其他异常
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            // 网络连接问题
+            return false;
+        } else {
+            console.warn(`检查JSON文件时发生错误: ${jsonPath}`, error.message);
+            return false;
+        }
+    }
+}
+
+// 验证课程JSON文件的基本结构
+async function validateCourseJSONStructure(jsonPath) {
+    try {
+        const response = await fetch(jsonPath);
+        if (!response.ok) {
+            return false;
+        }
+
+        const data = await response.json();
+
+        // 检查必需的基本字段
+        if (!data.id || typeof data.id !== 'string') {
+            console.warn(`JSON结构验证失败: ${jsonPath} - 缺少有效的id字段`);
+            return false;
+        }
+
+        if (!data.name || typeof data.name !== 'string') {
+            console.warn(`JSON结构验证失败: ${jsonPath} - 缺少有效的name字段`);
+            return false;
+        }
+
+        // 检查至少有Part A或Part B
+        const hasPartA = Array.isArray(data.partA) && data.partA.length > 0;
+        const hasPartB = Array.isArray(data.partB) && data.partB.length > 0;
+
+        if (!hasPartA && !hasPartB) {
+            console.warn(`JSON结构验证失败: ${jsonPath} - 缺少有效的partA或partB内容`);
+            return false;
+        }
+
+        // 验证段落结构
+        if (hasPartA && !validateParagraphsStructure(data.partA, 'partA')) {
+            console.warn(`JSON结构验证失败: ${jsonPath} - partA段落结构无效`);
+            return false;
+        }
+
+        if (hasPartB && !validateParagraphsStructure(data.partB, 'partB')) {
+            console.warn(`JSON结构验证失败: ${jsonPath} - partB段落结构无效`);
+            return false;
+        }
+
+        return true;
+
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            console.warn(`JSON解析失败: ${jsonPath} - 文件格式不是有效的JSON`);
+        } else {
+            console.warn(`JSON结构验证异常: ${jsonPath}`, error.message);
+        }
         return false;
     }
+}
+
+// 验证段落数组结构
+function validateParagraphsStructure(paragraphs, partName) {
+    if (!Array.isArray(paragraphs)) {
+        return false;
+    }
+
+    return paragraphs.every((paragraph, index) => {
+        if (!paragraph || typeof paragraph !== 'object') {
+            console.warn(`${partName}[${index}]: 段落不是有效对象`);
+            return false;
+        }
+
+        if (typeof paragraph.paragraph !== 'number') {
+            console.warn(`${partName}[${index}]: 缺少有效的paragraph编号`);
+            return false;
+        }
+
+        if (!paragraph.originalText || typeof paragraph.originalText !== 'string') {
+            console.warn(`${partName}[${index}]: 缺少有效的originalText`);
+            return false;
+        }
+
+        if (!paragraph.jyutping || typeof paragraph.jyutping !== 'string') {
+            console.warn(`${partName}[${index}]: 缺少有效的jyutping`);
+            return false;
+        }
+
+        // audioFile是可选的，但如果存在必须是字符串
+        if (paragraph.audioFile !== undefined && typeof paragraph.audioFile !== 'string') {
+            console.warn(`${partName}[${index}]: audioFile字段类型无效`);
+            return false;
+        }
+
+        return true;
+    });
+}
+
+// 生成课程发现报告
+function generateCourseDiscoveryReport(validCourses, totalAttempted) {
+    console.log('\n=== 课程发现报告 ===');
+    console.log(`🔍 扫描模式: 智能模式 (检查了 ${totalAttempted} 个可能的课程模式)`);
+    console.log(`✅ 发现课程: ${validCourses.length} 个`);
+
+    if (validCourses.length > 0) {
+        console.log('📚 有效课程列表:');
+        validCourses.forEach((courseId, index) => {
+            console.log(`  ${index + 1}. ${courseId}`);
+        });
+    }
+
+    // 提供建议
+    if (validCourses.length === 0) {
+        console.log('\n💡 建议检查:');
+        console.log('  1. 确保 data/ 目录存在');
+        console.log('  2. 确保课程文件夹包含有效的 courses.json 文件');
+        console.log('  3. 检查 courses.json 文件格式是否正确');
+        console.log('  4. 确保网络连接正常');
+    } else if (validCourses.length < 5) {
+        console.log('\n💡 提示: 如果您有更多课程，请确保:');
+        console.log('  - 课程文件夹命名遵循 Class01, Class02... 格式');
+        console.log('  - 或者使用 Lesson01, Unit01 等格式');
+        console.log('  - 每个文件夹都包含有效的 courses.json 文件');
+    }
+
+    console.log('=== 报告结束 ===\n');
 }
 
 
@@ -1328,9 +1504,27 @@ function handleDataLoadError(error, context = '数据加载') {
 
 // 检查课程数据完整性
 function checkCourseDataIntegrity() {
-    const issues = [];
+    console.log('=== 课程数据完整性检查 ===');
 
-    AppState.courses.forEach(course => {
+    if (!AppState.courses || AppState.courses.length === 0) {
+        console.warn('⚠️ 没有加载到任何课程数据');
+        return false;
+    }
+
+    console.log(`📚 总共加载了 ${AppState.courses.length} 个课程`);
+
+    const issues = [];
+    let totalParagraphs = 0;
+    let totalAudioFiles = 0;
+    let missingAudioFiles = 0;
+
+    AppState.courses.forEach((course, courseIndex) => {
+        console.log(`\n📖 检查课程 ${courseIndex + 1}: ${course.name} (${course.id})`);
+
+        let courseParagraphs = 0;
+        let courseAudioFiles = 0;
+        let courseMissingAudio = 0;
+
         // 检查是否有内容数据
         if (!course.hasContent) {
             issues.push(`课程 ${course.id} 缺少内容数据`);
@@ -1338,30 +1532,88 @@ function checkCourseDataIntegrity() {
 
         // 检查Part A
         if (course.partA && Array.isArray(course.partA)) {
-            course.partA.forEach(paragraph => {
-                if (paragraph.audioFile && (!paragraph.originalText || !paragraph.jyutping)) {
-                    issues.push(`课程 ${course.id} Part A 第${paragraph.paragraph}段有音频但缺少文本内容`);
+            console.log(`  📝 Part A: ${course.partA.length} 个段落`);
+            courseParagraphs += course.partA.length;
+
+            course.partA.forEach((paragraph, index) => {
+                // 检查必需字段
+                if (!paragraph.originalText || !paragraph.jyutping) {
+                    issues.push(`课程 ${course.id} Part A 第${paragraph.paragraph || index + 1}段缺少文本内容`);
+                }
+
+                if (paragraph.audioFile) {
+                    courseAudioFiles++;
+                } else {
+                    courseMissingAudio++;
+                    console.warn(`    ⚠️ Part A 段落 ${index + 1} 缺少音频文件`);
                 }
             });
+        } else {
+            console.log(`  📝 Part A: 无内容`);
         }
 
         // 检查Part B
-        if (course.partB && course.partB.length > 0) {
-            course.partB.forEach(paragraph => {
-                if (paragraph.hasAudio && !paragraph.hasContent) {
-                    issues.push(`课程 ${course.id} Part B 第${paragraph.paragraph}段有音频但缺少文本内容`);
+        if (course.partB && Array.isArray(course.partB)) {
+            console.log(`  📝 Part B: ${course.partB.length} 个段落`);
+            courseParagraphs += course.partB.length;
+
+            course.partB.forEach((paragraph, index) => {
+                // 检查必需字段
+                if (!paragraph.originalText || !paragraph.jyutping) {
+                    issues.push(`课程 ${course.id} Part B 第${paragraph.paragraph || index + 1}段缺少文本内容`);
+                }
+
+                if (paragraph.audioFile) {
+                    courseAudioFiles++;
+                } else {
+                    courseMissingAudio++;
+                    console.warn(`    ⚠️ Part B 段落 ${index + 1} 缺少音频文件`);
                 }
             });
+        } else {
+            console.log(`  📝 Part B: 无内容`);
         }
+
+        // 检查课程是否至少有一个部分有内容
+        if ((!course.partA || course.partA.length === 0) && (!course.partB || course.partB.length === 0)) {
+            issues.push(`课程 ${course.id} 没有任何内容（Part A和Part B都为空）`);
+        }
+
+        // 课程统计
+        console.log(`  📊 课程统计: ${courseParagraphs} 段落, ${courseAudioFiles} 音频文件, ${courseMissingAudio} 缺失音频`);
+
+        if (courseMissingAudio > 0) {
+            console.warn(`  ⚠️ 课程 ${course.name} 有 ${courseMissingAudio} 个段落缺少音频文件`);
+        } else if (courseParagraphs > 0) {
+            console.log(`  ✅ 课程 ${course.name} 所有段落都有音频文件`);
+        }
+
+        totalParagraphs += courseParagraphs;
+        totalAudioFiles += courseAudioFiles;
+        missingAudioFiles += courseMissingAudio;
     });
 
+    // 总体统计
+    console.log('\n📊 总体统计:');
+    console.log(`  - 课程数量: ${AppState.courses.length}`);
+    console.log(`  - 段落总数: ${totalParagraphs}`);
+    console.log(`  - 音频文件: ${totalAudioFiles}`);
+    console.log(`  - 缺失音频: ${missingAudioFiles}`);
+    console.log(`  - 发现问题: ${issues.length}`);
+
+    // 报告问题
     if (issues.length > 0) {
-        console.warn('课程数据完整性检查发现问题:', issues);
+        console.warn('\n❌ 发现以下数据完整性问题:');
+        issues.forEach((issue, index) => {
+            console.warn(`  ${index + 1}. ${issue}`);
+        });
     } else {
-        console.log('课程数据完整性检查通过');
+        console.log('\n✅ 所有课程数据完整性检查通过');
     }
 
-    return issues;
+    console.log('=== 检查完成 ===\n');
+
+    return issues.length === 0;
 }
 
 // 获取课程统计信息
