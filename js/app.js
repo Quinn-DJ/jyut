@@ -894,8 +894,8 @@ function testAudioPathResolution() {
         const hashPath = window.location.hash.substring(1);
         const hashSegments = hashPath.split('/').filter(segment => segment.length > 0);
         console.log(`Hash路径段数: ${hashSegments.length} (${hashSegments.join(', ')})`);
-        console.log(`实际使用的相对路径: ../../`);
-        console.log(`示例: 如果hash是 #Class01/A，则音频路径应该是 ../../Sound/Class01/a_1.opus`);
+        console.log(`实际使用的相对路径: ../`);
+        console.log(`示例: 如果hash是 #Class01/A，则音频路径应该是 ../Sound/Class01/a_1.opus`);
     }
 
     testPaths.forEach(path => {
@@ -3705,8 +3705,8 @@ function getBasePath() {
         if (currentPath.includes('/jyut')) {
             // 如果有hash路由（如 #Class01/A），使用相对路径
             if (currentHash && currentHash.includes('/')) {
-                // 对于 #Class01/A 这样的路由，需要 ../../
-                return '../../';
+                // 对于 #Class01/A 这样的路由，需要 ../
+                return '../';
             }
 
             // 没有hash路由时，使用当前目录
@@ -3720,8 +3720,8 @@ function getBasePath() {
     if (currentPath === '/' || currentPath === '/index.html') {
         // 如果有hash路由，需要相对路径
         if (currentHash && currentHash.includes('/')) {
-            // 对于本地开发，hash路由需要 ../../
-            return '../../';
+            // 对于本地开发，hash路由需要 ../
+            return '../';
         }
         return './';
     }
@@ -3732,7 +3732,7 @@ function getBasePath() {
 
     // 如果有hash路由，需要额外的回退步数
     if (currentHash && currentHash.includes('/')) {
-        backSteps += 2; // hash路由增加两层（对应 ../../）
+        backSteps += 1; // hash路由增加一层（对应 ../）
     }
 
     return backSteps > 0 ? '../'.repeat(backSteps) : './';
