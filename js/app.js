@@ -6,18 +6,18 @@ const AppState = {
     currentPart: null,
     courses: [],
     courseContent: new Map(), // 存储课程内容数据
-    
+
     // 状态变更监听器
     listeners: {
         courseChange: [],
         partChange: [],
         stateChange: []
     },
-    
+
     // 历史记录支持
     history: [],
     maxHistorySize: 10,
-    
+
     // URL路由支持
     enableRouting: true,
     routePrefix: '#'
@@ -34,38 +34,38 @@ const AppState = {
 function setCurrentSelection(courseId, part, updateURL = true) {
     const previousCourse = AppState.currentCourse;
     const previousPart = AppState.currentPart;
-    
+
     // 验证输入参数
     if (!courseId || !part) {
         console.warn('setCurrentSelection: 无效的参数', { courseId, part });
         return false;
     }
-    
+
     // 验证课程是否存在
     const course = AppState.courses.find(c => c.id === courseId);
     if (!course) {
         console.warn(`setCurrentSelection: 找不到课程 ${courseId}`);
         return false;
     }
-    
+
     // 验证部分是否存在
     if (part === 'A' && (!course.partA || !Array.isArray(course.partA) || course.partA.length === 0)) {
         console.warn(`setCurrentSelection: 课程 ${courseId} 没有 Part A`);
         return false;
     }
-    
+
     if (part === 'B' && (!course.partB || course.partB.length === 0)) {
         console.warn(`setCurrentSelection: 课程 ${courseId} 没有 Part B`);
         return false;
     }
-    
+
     // 更新状态
     AppState.currentCourse = courseId;
     AppState.currentPart = part;
-    
+
     // 添加到历史记录
     addToHistory(courseId, part);
-    
+
     // 触发状态变更事件
     if (previousCourse !== courseId) {
         triggerStateEvent('courseChange', {
@@ -74,7 +74,7 @@ function setCurrentSelection(courseId, part, updateURL = true) {
             part: part
         });
     }
-    
+
     if (previousPart !== part) {
         triggerStateEvent('partChange', {
             course: courseId,
@@ -82,18 +82,18 @@ function setCurrentSelection(courseId, part, updateURL = true) {
             current: part
         });
     }
-    
+
     triggerStateEvent('stateChange', {
         courseId: courseId,
         part: part,
         previous: { course: previousCourse, part: previousPart }
     });
-    
+
     // 更新URL路由
     if (updateURL && AppState.enableRouting) {
         updateURLRoute(courseId, part);
     }
-    
+
     console.log(`状态更新: ${courseId} - Part ${part}`);
     return true;
 }
@@ -116,22 +116,22 @@ function getCurrentSelection() {
  */
 function clearCurrentSelection() {
     const previous = getCurrentSelection();
-    
+
     AppState.currentCourse = null;
     AppState.currentPart = null;
-    
+
     // 触发状态变更事件
     triggerStateEvent('stateChange', {
         courseId: null,
         part: null,
         previous: previous
     });
-    
+
     // 清除URL路由
     if (AppState.enableRouting) {
         clearURLRoute();
     }
-    
+
     console.log('已清除当前选择');
 }
 
@@ -145,12 +145,12 @@ function addStateListener(eventType, callback) {
         console.warn(`addStateListener: 无效的事件类型 ${eventType}`);
         return;
     }
-    
+
     if (typeof callback !== 'function') {
         console.warn('addStateListener: 回调函数无效');
         return;
     }
-    
+
     AppState.listeners[eventType].push(callback);
     console.log(`添加状态监听器: ${eventType}`);
 }
@@ -164,7 +164,7 @@ function removeStateListener(eventType, callback) {
     if (!AppState.listeners[eventType]) {
         return;
     }
-    
+
     const index = AppState.listeners[eventType].indexOf(callback);
     if (index > -1) {
         AppState.listeners[eventType].splice(index, 1);
@@ -181,7 +181,7 @@ function triggerStateEvent(eventType, data) {
     if (!AppState.listeners[eventType]) {
         return;
     }
-    
+
     AppState.listeners[eventType].forEach(callback => {
         try {
             callback(data);
@@ -202,15 +202,15 @@ function addToHistory(courseId, part) {
         part: part,
         timestamp: Date.now()
     };
-    
+
     // 避免重复的历史记录
     const lastItem = AppState.history[AppState.history.length - 1];
     if (lastItem && lastItem.courseId === courseId && lastItem.part === part) {
         return;
     }
-    
+
     AppState.history.push(historyItem);
-    
+
     // 限制历史记录大小
     if (AppState.history.length > AppState.maxHistorySize) {
         AppState.history.shift();
@@ -242,9 +242,9 @@ function clearHistory() {
  */
 function updateURLRoute(courseId, part) {
     if (!AppState.enableRouting) return;
-    
+
     const route = `${AppState.routePrefix}${courseId}/${part}`;
-    
+
     // 使用pushState避免页面刷新
     if (window.history && window.history.pushState) {
         const url = new URL(window.location);
@@ -261,7 +261,7 @@ function updateURLRoute(courseId, part) {
  */
 function clearURLRoute() {
     if (!AppState.enableRouting) return;
-    
+
     if (window.history && window.history.pushState) {
         const url = new URL(window.location);
         url.hash = '';
@@ -277,23 +277,23 @@ function clearURLRoute() {
  */
 function parseURLRoute() {
     if (!AppState.enableRouting) return null;
-    
+
     const hash = window.location.hash;
     if (!hash || hash.length <= 1) return null;
-    
+
     // 移除#前缀
     const route = hash.substring(1);
     const parts = route.split('/');
-    
+
     if (parts.length !== 2) return null;
-    
+
     const [courseId, part] = parts;
-    
+
     // 验证路由格式
     if (!courseId || !part || !['A', 'B'].includes(part)) {
         return null;
     }
-    
+
     return { courseId, part };
 }
 
@@ -303,9 +303,9 @@ function parseURLRoute() {
 function applyURLRoute() {
     const route = parseURLRoute();
     if (!route) return false;
-    
+
     const { courseId, part } = route;
-    
+
     // 验证课程是否存在
     const course = AppState.courses.find(c => c.id === courseId);
     if (!course) {
@@ -313,20 +313,20 @@ function applyURLRoute() {
         clearURLRoute();
         return false;
     }
-    
+
     // 设置当前选择（不更新URL避免循环）
     const success = setCurrentSelection(courseId, part, false);
-    
+
     if (success) {
         // 更新UI
         updatePartButtonStates(courseId, part);
         updateCourseItemStates(courseId);
         renderContentDisplay(courseId, part);
-        
+
         console.log(`应用URL路由: ${courseId} - Part ${part}`);
         return true;
     }
-    
+
     return false;
 }
 
@@ -335,7 +335,7 @@ function applyURLRoute() {
  */
 function initRouting() {
     if (!AppState.enableRouting) return;
-    
+
     // 监听浏览器前进后退
     window.addEventListener('popstate', (event) => {
         if (event.state && event.state.courseId && event.state.part) {
@@ -349,12 +349,12 @@ function initRouting() {
             applyURLRoute();
         }
     });
-    
+
     // 监听hash变化（降级支持）
     window.addEventListener('hashchange', () => {
         applyURLRoute();
     });
-    
+
     console.log('路由支持已初始化');
 }
 
@@ -365,24 +365,24 @@ function initContentSwitchListeners() {
     // 监听状态变更事件
     addStateListener('stateChange', (data) => {
         console.log('状态变更:', data);
-        
+
         // 可以在这里添加额外的状态变更处理逻辑
         // 例如：保存用户偏好、更新统计信息等
     });
-    
+
     // 监听内容切换完成事件
     document.addEventListener('contentSwitchComplete', (event) => {
         const { courseId, part } = event.detail;
         console.log(`内容切换完成事件: ${courseId} - Part ${part}`);
-        
+
         // 可以在这里添加切换完成后的处理逻辑
         // 例如：预加载下一个内容、更新用户进度等
     });
-    
+
     // 监听音频播放状态变更
     document.addEventListener('audioStateChange', (event) => {
         const { audioId, state } = event.detail;
-        
+
         // 更新音频状态显示
         const audioControls = document.querySelector(`[data-audio-id="${audioId}"]`);
         if (audioControls) {
@@ -395,70 +395,73 @@ function initContentSwitchListeners() {
             }
         }
     });
-    
+
     console.log('内容切换监听器已初始化');
 }
 
 // 应用初始化
 async function initApp() {
     console.log('粤语教学网站初始化中...');
-    
+
     // 显示加载指示器
     showLoadingIndicator();
-    
+
     const startTime = performance.now();
-    
+
     try {
         // 加载课程内容数据（现在包含所有必要信息）
         const contentData = await loadCourseContentData();
-        
+
         // 直接使用内容数据，添加基本验证
         AppState.courses = contentData.courses.map(course => ({
             ...course,
             hasContent: true
         }));
-        
+
         console.log('最终课程数据:', AppState.courses);
-        
+
         // 显示调试信息
         displayDebugInfo();
-        
+
         // 检查数据完整性
         checkCourseDataIntegrity();
-        
+
         // 渲染界面
         renderCourseList();
-        
+
         // 初始化路由支持
         initRouting();
-        
+
         // 初始化内容切换监听器
         initContentSwitchListeners();
-        
+
         // 初始化性能优化功能
         initPerformanceOptimizations();
-        
+
         // 尝试应用URL路由
         setTimeout(() => {
             applyURLRoute();
         }, 100);
-        
+
         const loadTime = performance.now() - startTime;
         console.log(`应用初始化完成，耗时: ${loadTime.toFixed(2)}ms`);
-        
+
         // 隐藏加载指示器
         hideLoadingIndicator();
-        
+
         // 记录性能指标
         recordPerformanceMetrics(loadTime);
-        
+
+        // 测试音频路径解析（开发调试）
+        testAudioPathResolution();
+
     } catch (error) {
         console.error('应用初始化失败:', error);
-        
+
         // 隐藏加载指示器并显示错误
         hideLoadingIndicator();
         showErrorIndicator('应用初始化失败，请刷新页面重试');
-        
+
         // 即使出错也要显示基本界面
         renderCourseList();
     }
@@ -480,38 +483,38 @@ const AudioLazyLoader = {
     preloadQueue: [],
     maxConcurrentLoads: 3,
     currentLoads: 0,
-    
+
     // 懒加载音频文件
     async lazyLoadAudio(audioPath) {
         if (this.loadedAudios.has(audioPath)) {
             return true;
         }
-        
+
         if (this.currentLoads >= this.maxConcurrentLoads) {
             return new Promise((resolve) => {
                 this.preloadQueue.push({ audioPath, resolve });
             });
         }
-        
+
         return this.loadAudio(audioPath);
     },
-    
+
     // 加载单个音频文件
     async loadAudio(audioPath) {
         this.currentLoads++;
-        
+
         try {
             const audio = new Audio();
-            
+
             // 解析音频路径
             const resolvedPath = this.resolveAudioPath(audioPath);
             console.log(`AudioLazyLoader: 解析路径 ${audioPath} -> ${resolvedPath}`);
-            
+
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
                     reject(new Error('音频加载超时'));
                 }, 10000); // 10秒超时
-                
+
                 audio.oncanplaythrough = () => {
                     clearTimeout(timeout);
                     this.loadedAudios.add(audioPath);
@@ -520,7 +523,7 @@ const AudioLazyLoader = {
                     console.log(`AudioLazyLoader: 音频加载成功 ${resolvedPath}`);
                     resolve(true);
                 };
-                
+
                 audio.onerror = (e) => {
                     clearTimeout(timeout);
                     this.currentLoads--;
@@ -528,37 +531,23 @@ const AudioLazyLoader = {
                     console.error(`AudioLazyLoader: 音频加载失败 ${resolvedPath}`, e);
                     reject(new Error(`音频加载失败: ${resolvedPath}`));
                 };
-                
+
                 audio.src = resolvedPath;
             });
-            
+
         } catch (error) {
             this.currentLoads--;
             this.processQueue();
             throw error;
         }
     },
-    
+
     // 解析音频路径
     resolveAudioPath(audioPath) {
-        if (!audioPath) {
-            throw new Error('音频路径为空');
-        }
-        
-        // 如果路径已经是完整的相对路径，直接返回
-        if (audioPath.startsWith('Sound/') || audioPath.startsWith('./Sound/')) {
-            return audioPath.startsWith('./') ? audioPath : './' + audioPath;
-        }
-        
-        // 如果是绝对路径，直接返回
-        if (audioPath.startsWith('http://') || audioPath.startsWith('https://') || audioPath.startsWith('/')) {
-            return audioPath;
-        }
-        
-        // 否则假设是相对于Sound目录的路径
-        return './Sound/' + audioPath;
+        // 使用全局的路径解析函数，确保一致性
+        return resolveAudioFilePath(audioPath);
     },
-    
+
     // 处理预加载队列
     processQueue() {
         if (this.preloadQueue.length > 0 && this.currentLoads < this.maxConcurrentLoads) {
@@ -566,13 +555,13 @@ const AudioLazyLoader = {
             this.loadAudio(audioPath).then(resolve).catch(resolve);
         }
     },
-    
+
     // 预加载音频文件
     async preloadAudio(audioPath) {
         if (this.loadedAudios.has(audioPath)) {
             return true;
         }
-        
+
         try {
             await this.lazyLoadAudio(audioPath);
             console.log(`预加载完成: ${audioPath}`);
@@ -582,23 +571,23 @@ const AudioLazyLoader = {
             return false;
         }
     },
-    
+
     // 批量预加载
     async batchPreload(audioPaths) {
         const promises = audioPaths.map(path => this.preloadAudio(path));
         const results = await Promise.allSettled(promises);
-        
+
         const successful = results.filter(r => r.status === 'fulfilled' && r.value).length;
         console.log(`批量预加载完成: ${successful}/${audioPaths.length}`);
-        
+
         return results;
     },
-    
+
     // 检查音频是否已加载
     isLoaded(audioPath) {
         return this.loadedAudios.has(audioPath);
     },
-    
+
     // 清除缓存
     clearCache() {
         this.loadedAudios.clear();
@@ -610,12 +599,12 @@ const AudioLazyLoader = {
 // 加载状态管理器
 const LoadingManager = {
     activeLoaders: new Set(),
-    
+
     // 显示加载指示器
     show(id, message = '加载中...') {
         this.activeLoaders.add(id);
         this.updateGlobalLoadingState();
-        
+
         // 显示特定加载器
         const loader = document.querySelector(`[data-loader-id="${id}"]`);
         if (loader) {
@@ -626,19 +615,19 @@ const LoadingManager = {
             }
         }
     },
-    
+
     // 隐藏加载指示器
     hide(id) {
         this.activeLoaders.delete(id);
         this.updateGlobalLoadingState();
-        
+
         // 隐藏特定加载器
         const loader = document.querySelector(`[data-loader-id="${id}"]`);
         if (loader) {
             loader.style.display = 'none';
         }
     },
-    
+
     // 更新全局加载状态
     updateGlobalLoadingState() {
         const globalLoader = document.getElementById('global-loading-indicator');
@@ -651,12 +640,12 @@ const LoadingManager = {
             }
         }
     },
-    
+
     // 检查是否有活动的加载器
     hasActiveLoaders() {
         return this.activeLoaders.size > 0;
     },
-    
+
     // 获取活动加载器列表
     getActiveLoaders() {
         return Array.from(this.activeLoaders);
@@ -675,40 +664,40 @@ const PerformanceMonitor = {
             network: 0
         }
     },
-    
+
     // 记录应用初始化时间
     recordAppInitTime(time) {
         this.metrics.appInitTime = time;
         console.log(`应用初始化性能: ${time.toFixed(2)}ms`);
-        
+
         // 如果超过3秒，记录警告
         if (time > 3000) {
             console.warn('应用初始化时间超过3秒，可能影响用户体验');
         }
     },
-    
+
     // 记录音频加载时间
     recordAudioLoadTime(audioPath, time) {
         this.metrics.audioLoadTimes.push({ audioPath, time, timestamp: Date.now() });
         console.log(`音频加载性能: ${audioPath} - ${time.toFixed(2)}ms`);
-        
+
         // 保持最近100条记录
         if (this.metrics.audioLoadTimes.length > 100) {
             this.metrics.audioLoadTimes.shift();
         }
     },
-    
+
     // 记录内容切换时间
     recordContentSwitchTime(courseId, part, time) {
         this.metrics.contentSwitchTimes.push({ courseId, part, time, timestamp: Date.now() });
         console.log(`内容切换性能: ${courseId}-${part} - ${time.toFixed(2)}ms`);
-        
+
         // 保持最近50条记录
         if (this.metrics.contentSwitchTimes.length > 50) {
             this.metrics.contentSwitchTimes.shift();
         }
     },
-    
+
     // 记录错误
     recordError(type, error) {
         if (this.metrics.errorCounts[type] !== undefined) {
@@ -716,17 +705,17 @@ const PerformanceMonitor = {
         }
         console.error(`性能监控 - ${type}错误:`, error);
     },
-    
+
     // 获取性能报告
     getPerformanceReport() {
-        const avgAudioLoadTime = this.metrics.audioLoadTimes.length > 0 
+        const avgAudioLoadTime = this.metrics.audioLoadTimes.length > 0
             ? this.metrics.audioLoadTimes.reduce((sum, item) => sum + item.time, 0) / this.metrics.audioLoadTimes.length
             : 0;
-            
+
         const avgContentSwitchTime = this.metrics.contentSwitchTimes.length > 0
             ? this.metrics.contentSwitchTimes.reduce((sum, item) => sum + item.time, 0) / this.metrics.contentSwitchTimes.length
             : 0;
-        
+
         return {
             appInitTime: this.metrics.appInitTime,
             avgAudioLoadTime: avgAudioLoadTime.toFixed(2),
@@ -736,7 +725,7 @@ const PerformanceMonitor = {
             errorCounts: { ...this.metrics.errorCounts }
         };
     },
-    
+
     // 清除性能数据
     clearMetrics() {
         this.metrics = {
@@ -759,9 +748,9 @@ const PreloadStrategy = {
     async preloadCurrentCourse(courseId) {
         const course = AppState.courses.find(c => c.id === courseId);
         if (!course) return;
-        
+
         const audioFiles = [];
-        
+
         // 收集Part A音频
         if (course.partA && Array.isArray(course.partA)) {
             course.partA.forEach(paragraph => {
@@ -770,7 +759,7 @@ const PreloadStrategy = {
                 }
             });
         }
-        
+
         // 收集Part B音频
         if (course.partB && course.partB.length > 0) {
             course.partB.forEach(paragraph => {
@@ -779,31 +768,31 @@ const PreloadStrategy = {
                 }
             });
         }
-        
+
         if (audioFiles.length > 0) {
             console.log(`开始预加载课程 ${courseId} 的音频文件:`, audioFiles);
             await AudioLazyLoader.batchPreload(audioFiles);
         }
     },
-    
+
     // 预加载下一个可能访问的课程
     async preloadNextCourse(currentCourseId) {
         const currentIndex = AppState.courses.findIndex(c => c.id === currentCourseId);
         if (currentIndex === -1 || currentIndex >= AppState.courses.length - 1) return;
-        
+
         const nextCourse = AppState.courses[currentIndex + 1];
         if (nextCourse) {
             console.log(`预加载下一个课程: ${nextCourse.id}`);
             await this.preloadCurrentCourse(nextCourse.id);
         }
     },
-    
+
     // 基于用户行为的智能预加载
     async intelligentPreload() {
         // 如果用户已经选择了课程，预加载该课程的所有音频
         if (AppState.currentCourse) {
             await this.preloadCurrentCourse(AppState.currentCourse);
-            
+
             // 延迟预加载下一个课程
             setTimeout(() => {
                 this.preloadNextCourse(AppState.currentCourse);
@@ -827,15 +816,15 @@ const PreloadStrategy = {
 // 初始化性能优化功能
 function initPerformanceOptimizations() {
     console.log('初始化性能优化功能...');
-    
+
     // 创建全局加载指示器
     createGlobalLoadingIndicator();
-    
+
     // 启动智能预加载
     setTimeout(() => {
         PreloadStrategy.intelligentPreload();
     }, 1000);
-    
+
     // 监听状态变更以触发预加载
     addStateListener('stateChange', (data) => {
         if (data.courseId && data.courseId !== data.previous?.course) {
@@ -845,7 +834,7 @@ function initPerformanceOptimizations() {
             }, 500);
         }
     });
-    
+
     // 监听页面可见性变化
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
@@ -853,7 +842,7 @@ function initPerformanceOptimizations() {
             PreloadStrategy.intelligentPreload();
         }
     });
-    
+
     console.log('性能优化功能初始化完成');
 }
 
@@ -873,7 +862,7 @@ function showErrorIndicator(message) {
     if (errorContainer) {
         errorContainer.textContent = message;
         errorContainer.style.display = 'block';
-        
+
         // 5秒后自动隐藏
         setTimeout(() => {
             errorContainer.style.display = 'none';
@@ -881,10 +870,92 @@ function showErrorIndicator(message) {
     }
 }
 
+// 测试音频路径解析（开发调试用）
+function testAudioPathResolution() {
+    const testPaths = [
+        'Sound/Class01/a_1.opus',
+        './Sound/Class01/a_1.opus',
+        'Class01/a_1.opus',
+        'Sound/Class02/b_2.opus'
+    ];
+
+    console.log('=== 音频路径解析测试 ===');
+    console.log(`当前页面路径: ${window.location.pathname}`);
+    console.log(`当前完整URL: ${window.location.href}`);
+    console.log(`基础路径: ${getBasePath()}`);
+    console.log(`是否为GitHub Pages: ${window.location.origin.includes('github.io')}`);
+
+    testPaths.forEach(path => {
+        try {
+            const resolved = resolveAudioFilePath(path);
+            console.log(`${path} -> ${resolved}`);
+        } catch (error) {
+            console.error(`${path} -> ERROR: ${error.message}`);
+        }
+    });
+    console.log('=== 测试结束 ===');
+}
+
+// 手动测试音频播放（开发调试用）
+window.testAudioPlayback = function (audioPath) {
+    console.log(`手动测试音频播放: ${audioPath}`);
+
+    try {
+        const resolvedPath = resolveAudioFilePath(audioPath);
+        console.log(`解析后路径: ${resolvedPath}`);
+
+        const audio = new Audio();
+        audio.src = resolvedPath;
+
+        audio.oncanplaythrough = () => {
+            console.log(`音频可以播放: ${resolvedPath}`);
+            audio.play().then(() => {
+                console.log(`音频播放开始: ${resolvedPath}`);
+            }).catch(error => {
+                console.error(`音频播放失败: ${resolvedPath}`, error);
+            });
+        };
+
+        audio.onerror = (e) => {
+            console.error(`音频加载失败: ${resolvedPath}`, e);
+        };
+
+    } catch (error) {
+        console.error(`测试失败: ${audioPath}`, error);
+    }
+};
+
+// 测试当前页面所有音频控件（开发调试用）
+window.testAllAudioControls = function () {
+    console.log('=== 测试所有音频控件 ===');
+
+    const audioControls = document.querySelectorAll('.audio-controls[data-audio-id]');
+    console.log(`找到 ${audioControls.length} 个音频控件`);
+
+    audioControls.forEach((control, index) => {
+        const audioId = control.dataset.audioId;
+        const audioFile = control.dataset.audioFile;
+
+        console.log(`控件 ${index + 1}: ID=${audioId}, 文件=${audioFile}`);
+
+        if (AudioPlayerManager) {
+            const player = AudioPlayerManager.getPlayer(audioId);
+            if (player) {
+                console.log(`  播放器状态: ${player.currentState}`);
+                console.log(`  音频源: ${player.audio ? player.audio.src : '未设置'}`);
+            } else {
+                console.log(`  播放器未找到`);
+            }
+        }
+    });
+
+    console.log('=== 测试结束 ===');
+};
+
 // 记录性能指标
 function recordPerformanceMetrics(loadTime) {
     PerformanceMonitor.recordAppInitTime(loadTime);
-    
+
     // 如果支持Performance API，记录更多指标
     if (window.performance && window.performance.getEntriesByType) {
         const navigationEntries = window.performance.getEntriesByType('navigation');
@@ -905,12 +976,12 @@ function recordPerformanceMetrics(loadTime) {
 function createGlobalLoadingIndicator() {
     // 检查是否已存在
     if (document.getElementById('global-loading-indicator')) return;
-    
+
     const indicator = document.createElement('div');
     indicator.id = 'global-loading-indicator';
     indicator.className = 'global-loading-indicator';
     indicator.style.display = 'none';
-    
+
     indicator.innerHTML = `
         <div class="loading-content">
             <div class="loading-spinner"></div>
@@ -920,9 +991,9 @@ function createGlobalLoadingIndicator() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(indicator);
-    
+
     // 添加样式
     const style = document.createElement('style');
     style.textContent = `
@@ -998,7 +1069,7 @@ function createGlobalLoadingIndicator() {
             }
         }
     `;
-    
+
     document.head.appendChild(style);
 }
 
@@ -1009,7 +1080,7 @@ async function discoverCourses() {
     // 由于浏览器安全限制，无法直接读取文件系统
     // 这里使用预定义的课程列表，基于现有的data目录结构
     const knownCourses = ['Class01', 'Class02'];
-    
+
     // 验证课程文件夹是否存在（通过尝试加载JSON文件）
     const validCourses = [];
     for (const course of knownCourses) {
@@ -1018,7 +1089,7 @@ async function discoverCourses() {
             validCourses.push(course);
         }
     }
-    
+
     return validCourses;
 }
 
@@ -1039,21 +1110,21 @@ async function validateCourseFolder(courseFolder) {
 function checkAudioFileExists(audioPath) {
     return new Promise((resolve) => {
         const audio = new Audio();
-        
+
         const timeout = setTimeout(() => {
             resolve(false);
         }, 3000); // 3秒超时
-        
+
         audio.oncanplaythrough = () => {
             clearTimeout(timeout);
             resolve(true);
         };
-        
+
         audio.onerror = () => {
             clearTimeout(timeout);
             resolve(false);
         };
-        
+
         audio.src = audioPath;
     });
 }
@@ -1077,7 +1148,7 @@ function generateCourseName(courseFolder) {
     const classNumber = courseFolder.replace('Class', '');
     const numberMap = {
         '01': '一',
-        '02': '二', 
+        '02': '二',
         '03': '三',
         '04': '四',
         '05': '五',
@@ -1087,7 +1158,7 @@ function generateCourseName(courseFolder) {
         '09': '九',
         '10': '十'
     };
-    
+
     const chineseName = numberMap[classNumber] || classNumber;
     return `第${chineseName}课`;
 }
@@ -1098,11 +1169,11 @@ function generateCourseName(courseFolder) {
 async function loadCourseContentData() {
     try {
         console.log('加载课程内容数据...');
-        
+
         // 发现data目录下的课程
         const courseIds = await discoverCourses();
         const courses = [];
-        
+
         // 为每个课程加载JSON数据
         for (const courseId of courseIds) {
             try {
@@ -1114,21 +1185,21 @@ async function loadCourseContentData() {
                 console.warn(`加载课程 ${courseId} 数据失败:`, error);
             }
         }
-        
+
         // 验证数据格式
         const validatedData = validateCourseData({ courses });
-        
+
         // 将数据存储到Map中以便快速查找
         validatedData.courses.forEach(course => {
             AppState.courseContent.set(course.id, course);
         });
-        
+
         console.log('课程内容数据加载完成:', validatedData);
         return validatedData;
-        
+
     } catch (error) {
         console.error('加载课程内容数据失败:', error);
-        
+
         // 返回默认的空数据结构
         return {
             courses: []
@@ -1143,12 +1214,12 @@ async function loadSingleCourseData(courseId) {
         if (!response.ok) {
             throw new Error(`HTTP错误: ${response.status}`);
         }
-        
+
         const courseData = await response.json();
         console.log(`课程 ${courseId} 数据加载成功:`, courseData);
-        
+
         return courseData;
-        
+
     } catch (error) {
         console.error(`加载课程 ${courseId} 数据失败:`, error);
         return null;
@@ -1160,11 +1231,11 @@ function validateCourseData(data) {
     if (!data || typeof data !== 'object') {
         throw new Error('课程数据格式无效：不是有效的对象');
     }
-    
+
     if (!Array.isArray(data.courses)) {
         throw new Error('课程数据格式无效：courses不是数组');
     }
-    
+
     // 验证每个课程的数据结构
     const validatedCourses = data.courses.filter(course => {
         try {
@@ -1174,7 +1245,7 @@ function validateCourseData(data) {
             return false;
         }
     });
-    
+
     return {
         courses: validatedCourses
     };
@@ -1185,31 +1256,31 @@ function validateSingleCourse(course) {
     if (!course || typeof course !== 'object') {
         throw new Error('课程数据不是有效对象');
     }
-    
+
     // 必需字段验证
     if (!course.id || typeof course.id !== 'string') {
         throw new Error('课程ID无效');
     }
-    
+
     if (!course.name || typeof course.name !== 'string') {
         throw new Error('课程名称无效');
     }
-    
+
     // Part A验证（可选）
     if (course.partA && !validatePartAData(course.partA)) {
         throw new Error('Part A数据格式无效');
     }
-    
+
     // Part B验证（可选）
     if (course.partB && !validatePartBData(course.partB)) {
         throw new Error('Part B数据格式无效');
     }
-    
+
     // 至少要有Part A或Part B
     if ((!course.partA || course.partA.length === 0) && (!course.partB || course.partB.length === 0)) {
         throw new Error('课程必须包含Part A或Part B内容');
     }
-    
+
     return true;
 }
 
@@ -1219,7 +1290,7 @@ function validatePartAData(partA) {
     if (!Array.isArray(partA)) {
         return false;
     }
-    
+
     return partA.every(paragraph => {
         return (
             paragraph &&
@@ -1237,7 +1308,7 @@ function validatePartBData(partB) {
     if (!Array.isArray(partB)) {
         return false;
     }
-    
+
     return partB.every(paragraph => {
         return (
             paragraph &&
@@ -1257,7 +1328,7 @@ function getCourseContent(courseId) {
         console.warn(`未找到课程 ${courseId} 的内容数据`);
         return null;
     }
-    
+
     return courseContent;
 }
 
@@ -1267,13 +1338,13 @@ function getPartContent(courseId, part) {
     if (!courseContent) {
         return null;
     }
-    
+
     if (part === 'A') {
         return courseContent.partA || [];
     } else if (part === 'B') {
         return courseContent.partB || [];
     }
-    
+
     console.warn(`无效的部分标识: ${part}`);
     return null;
 }
@@ -1285,10 +1356,10 @@ function getPartContent(courseId, part) {
 // 处理数据加载错误
 function handleDataLoadError(error, context = '数据加载') {
     console.error(`${context}错误:`, error);
-    
+
     // 可以在这里添加用户通知逻辑
     // 例如显示错误消息给用户
-    
+
     return {
         success: false,
         error: error.message || '未知错误',
@@ -1299,13 +1370,13 @@ function handleDataLoadError(error, context = '数据加载') {
 // 检查课程数据完整性
 function checkCourseDataIntegrity() {
     const issues = [];
-    
+
     AppState.courses.forEach(course => {
         // 检查是否有内容数据
         if (!course.hasContent) {
             issues.push(`课程 ${course.id} 缺少内容数据`);
         }
-        
+
         // 检查Part A
         if (course.partA && Array.isArray(course.partA)) {
             course.partA.forEach(paragraph => {
@@ -1314,7 +1385,7 @@ function checkCourseDataIntegrity() {
                 }
             });
         }
-        
+
         // 检查Part B
         if (course.partB && course.partB.length > 0) {
             course.partB.forEach(paragraph => {
@@ -1324,13 +1395,13 @@ function checkCourseDataIntegrity() {
             });
         }
     });
-    
+
     if (issues.length > 0) {
         console.warn('课程数据完整性检查发现问题:', issues);
     } else {
         console.log('课程数据完整性检查通过');
     }
-    
+
     return issues;
 }
 
@@ -1343,23 +1414,23 @@ function getCourseStatistics() {
         totalPartB: 0,
         totalParagraphs: 0
     };
-    
+
     AppState.courses.forEach(course => {
         if (course.hasContent) {
             stats.coursesWithContent++;
         }
-        
+
         if (course.partA && Array.isArray(course.partA) && course.partA.length > 0) {
             stats.totalPartA++;
             stats.totalParagraphs += course.partA.length;
         }
-        
+
         if (course.partB && course.partB.length > 0) {
             stats.totalPartB++;
             stats.totalParagraphs += course.partB.length;
         }
     });
-    
+
     return stats;
 }
 
@@ -1367,10 +1438,10 @@ function getCourseStatistics() {
 function displayDebugInfo() {
     const debugContainer = document.getElementById('debug-container');
     if (!debugContainer) return;
-    
+
     const stats = getCourseStatistics();
     const issues = checkCourseDataIntegrity();
-    
+
     let debugHTML = `
         <h4>扫描结果统计</h4>
         <ul>
@@ -1384,7 +1455,7 @@ function displayDebugInfo() {
         <h4>课程详情</h4>
         <ul>
     `;
-    
+
     AppState.courses.forEach(course => {
         debugHTML += `
             <li>
@@ -1392,7 +1463,7 @@ function displayDebugInfo() {
                 - 有内容: ${course.hasContent ? '是' : '否'}
                 <ul>
         `;
-        
+
         if (course.partA && Array.isArray(course.partA)) {
             debugHTML += `<li>Part A: ${course.partA.length}段`;
             course.partA.forEach(p => {
@@ -1400,7 +1471,7 @@ function displayDebugInfo() {
             });
             debugHTML += `</li>`;
         }
-        
+
         if (course.partB && course.partB.length > 0) {
             debugHTML += `<li>Part B: ${course.partB.length}段`;
             course.partB.forEach(p => {
@@ -1408,12 +1479,12 @@ function displayDebugInfo() {
             });
             debugHTML += `</li>`;
         }
-        
+
         debugHTML += `</ul></li>`;
     });
-    
+
     debugHTML += '</ul>';
-    
+
     if (issues.length > 0) {
         debugHTML += `
             <h4>数据完整性问题</h4>
@@ -1426,7 +1497,7 @@ function displayDebugInfo() {
     } else {
         debugHTML += '<p style="color: green;">✓ 数据完整性检查通过</p>';
     }
-    
+
     debugContainer.innerHTML = debugHTML;
 }
 
@@ -1441,21 +1512,21 @@ function renderCourseList() {
         console.error('找不到课程容器元素');
         return;
     }
-    
+
     // 清除加载状态
     courseContainer.innerHTML = '';
-    
+
     if (AppState.courses.length === 0) {
         renderEmptyCourseList(courseContainer);
         return;
     }
-    
+
     // 渲染每个课程
     AppState.courses.forEach(course => {
         const courseElement = createCourseElement(course);
         courseContainer.appendChild(courseElement);
     });
-    
+
     // 初始化课程交互
     initCourseInteractions();
 }
@@ -1465,10 +1536,10 @@ function createCourseElement(course) {
     const courseDiv = document.createElement('div');
     courseDiv.className = 'course-item';
     courseDiv.dataset.courseId = course.id;
-    
+
     // 计算课程状态
     const status = calculateCourseStatus(course);
-    
+
     courseDiv.innerHTML = `
         <div class="course-title">
             <span>${course.name}</span>
@@ -1485,7 +1556,7 @@ function createCourseElement(course) {
             ${createPartButton(course, 'B')}
         </div>
     `;
-    
+
     return courseDiv;
 }
 
@@ -1493,31 +1564,31 @@ function createCourseElement(course) {
 function createPartButton(course, part) {
     const isPartA = part === 'A';
     const partData = isPartA ? course.partA : course.partB;
-    
+
     // 检查是否有该部分的内容
-    const hasContent = isPartA ? 
-        (partData && Array.isArray(partData) && partData.length > 0) : 
+    const hasContent = isPartA ?
+        (partData && Array.isArray(partData) && partData.length > 0) :
         (partData && partData.length > 0);
-    
+
     const hasTextContent = isPartA ?
         (partData && Array.isArray(partData) && partData.every(p => p.originalText && p.jyutping)) :
         (partData && partData.some(p => p.originalText && p.jyutping));
-    
+
     let buttonClass = 'part-btn';
     let buttonText = `Part ${part}`;
-    
+
     if (!hasContent) {
         buttonClass += ' disabled';
         buttonText += ' (无内容)';
     } else if (!hasTextContent) {
         buttonText += ' (仅音频)';
     }
-    
+
     // 检查是否为当前选中状态
     if (AppState.currentCourse === course.id && AppState.currentPart === part) {
         buttonClass += ' selected';
     }
-    
+
     return `
         <button class="${buttonClass}" 
                 data-course="${course.id}" 
@@ -1534,33 +1605,33 @@ function calculateCourseStatus(course) {
     let hasText = false;
     let totalParts = 0;
     let completeParts = 0;
-    
+
     // 检查Part A
     if (course.partA && Array.isArray(course.partA) && course.partA.length > 0) {
         totalParts++;
         const hasPartAAudio = course.partA.some(p => p.audioFile);
         const hasPartAText = course.partA.every(p => p.originalText && p.jyutping);
-        
+
         if (hasPartAAudio) hasAudio = true;
         if (hasPartAText) {
             hasText = true;
             completeParts++;
         }
     }
-    
+
     // 检查Part B
     if (course.partB && course.partB.length > 0) {
         totalParts++;
         const hasPartBAudio = course.partB.some(p => p.hasAudio);
         const hasPartBText = course.partB.some(p => p.hasContent);
-        
+
         if (hasPartBAudio) hasAudio = true;
         if (hasPartBText) {
             hasText = true;
             completeParts++;
         }
     }
-    
+
     if (completeParts === totalParts && hasText) {
         return { class: 'complete', text: '内容完整' };
     } else if (hasAudio && hasText) {
@@ -1587,7 +1658,7 @@ function renderEmptyCourseList(container) {
 // 初始化课程交互
 function initCourseInteractions() {
     const partButtons = document.querySelectorAll('.part-btn:not(.disabled)');
-    
+
     partButtons.forEach(button => {
         button.addEventListener('click', handlePartSelection);
     });
@@ -1598,51 +1669,51 @@ function handlePartSelection(event) {
     const button = event.target;
     const courseId = button.dataset.course;
     const part = button.dataset.part;
-    
+
     // 防止重复点击
     if (ContentSwitcher.isSwitching) {
         console.log('内容正在切换中，忽略点击');
         return;
     }
-    
+
     // 添加按钮选择动画
     button.classList.add('selecting');
-    
+
     // 添加课程项目选择动画
     const courseItem = button.closest('.course-item');
     if (courseItem) {
         courseItem.classList.add('selecting');
     }
-    
+
     // 使用新的状态管理系统
     const success = setCurrentSelection(courseId, part);
-    
+
     if (success) {
         // 更新按钮选中状态
         updatePartButtonStates(courseId, part);
-        
+
         // 更新课程项目选中状态
         updateCourseItemStates(courseId);
-        
+
         // 触发内容显示更新（使用动画）
         renderContentDisplay(courseId, part);
-        
+
         // 添加视觉反馈
         button.classList.add('clicked');
         setTimeout(() => {
             button.classList.remove('clicked', 'selecting');
         }, 200);
-        
+
         // 清理课程项目动画
         setTimeout(() => {
             if (courseItem) {
                 courseItem.classList.remove('selecting');
             }
         }, 400);
-        
+
     } else {
         console.error('选择失败:', { courseId, part });
-        
+
         // 清理动画类
         button.classList.remove('selecting');
         if (courseItem) {
@@ -1654,11 +1725,11 @@ function handlePartSelection(event) {
 // 更新Part按钮状态
 function updatePartButtonStates(selectedCourse, selectedPart) {
     const allButtons = document.querySelectorAll('.part-btn');
-    
+
     allButtons.forEach(button => {
         const courseId = button.dataset.course;
         const part = button.dataset.part;
-        
+
         if (courseId === selectedCourse && part === selectedPart) {
             button.classList.add('selected');
         } else {
@@ -1670,10 +1741,10 @@ function updatePartButtonStates(selectedCourse, selectedPart) {
 // 更新课程项目状态
 function updateCourseItemStates(selectedCourse) {
     const allCourseItems = document.querySelectorAll('.course-item');
-    
+
     allCourseItems.forEach(item => {
         const courseId = item.dataset.courseId;
-        
+
         if (courseId === selectedCourse) {
             item.classList.add('has-selection');
         } else {
@@ -1699,21 +1770,21 @@ function getCurrentSelection() {
 const ContentSwitcher = {
     // 当前切换状态
     isSwitching: false,
-    
+
     // 动画类型配置
     animationTypes: {
         fade: 'fade',
-        slide: 'slide', 
+        slide: 'slide',
         scale: 'scale',
         flip: 'flip'
     },
-    
+
     // 当前动画类型
     currentAnimationType: 'fade',
-    
+
     // 切换方向（用于滑动动画）
     switchDirection: 'right',
-    
+
     // 动画持续时间配置
     durations: {
         exit: 300,
@@ -1741,11 +1812,11 @@ function setContentAnimationType(type) {
  */
 function determineSwitchDirection(fromPart, toPart) {
     if (!fromPart || !toPart) return 'right';
-    
+
     // A -> B: 向右, B -> A: 向左
     if (fromPart === 'A' && toPart === 'B') return 'right';
     if (fromPart === 'B' && toPart === 'A') return 'left';
-    
+
     return 'right';
 }
 
@@ -1760,22 +1831,22 @@ function switchContentWithAnimation(courseId, part, animated = true) {
         console.log('内容正在切换中，忽略新的切换请求');
         return;
     }
-    
+
     const contentContainer = document.getElementById('content-container');
     const breadcrumb = document.getElementById('content-breadcrumb');
-    
+
     if (!contentContainer || !breadcrumb) {
         console.error('找不到内容显示容器元素');
         return;
     }
-    
+
     // 获取当前选择状态
     const currentSelection = getCurrentSelection();
     const fromPart = currentSelection.part;
-    
+
     // 确定切换方向
     ContentSwitcher.switchDirection = determineSwitchDirection(fromPart, part);
-    
+
     if (animated && fromPart && fromPart !== part) {
         // 执行动画切换
         performAnimatedSwitch(courseId, part, contentContainer, breadcrumb);
@@ -1794,43 +1865,43 @@ function switchContentWithAnimation(courseId, part, animated = true) {
  */
 function performAnimatedSwitch(courseId, part, contentContainer, breadcrumb) {
     ContentSwitcher.isSwitching = true;
-    
+
     // 添加切换状态类
     contentContainer.classList.add('content-switching');
-    
+
     // 停止所有当前播放的音频
     stopAllAudioPlayback();
-    
+
     // 第一阶段：退出动画
     const exitClass = getExitAnimationClass();
     contentContainer.classList.add(exitClass);
-    
+
     // 更新面包屑（带动画）
     updateBreadcrumbWithAnimation(courseId, part, breadcrumb);
-    
+
     setTimeout(() => {
         // 清理退出动画类
         contentContainer.classList.remove(exitClass);
-        
+
         // 渲染新内容
         renderNewContent(courseId, part, contentContainer);
-        
+
         // 第二阶段：进入动画
         const enterClass = getEnterAnimationClass();
         contentContainer.classList.add(enterClass);
-        
+
         setTimeout(() => {
             // 清理进入动画类和切换状态
             contentContainer.classList.remove(enterClass, 'content-switching');
             ContentSwitcher.isSwitching = false;
-            
+
             console.log(`内容切换完成: ${courseId} - Part ${part}`);
-            
+
             // 触发切换完成事件
             triggerContentSwitchComplete(courseId, part);
-            
+
         }, ContentSwitcher.durations.enter);
-        
+
     }, ContentSwitcher.durations.exit);
 }
 
@@ -1844,13 +1915,13 @@ function performAnimatedSwitch(courseId, part, contentContainer, breadcrumb) {
 function performDirectSwitch(courseId, part, contentContainer, breadcrumb) {
     // 停止所有当前播放的音频
     stopAllAudioPlayback();
-    
+
     // 更新面包屑
     updateContentBreadcrumb(courseId, part, breadcrumb);
-    
+
     // 渲染新内容
     renderNewContent(courseId, part, contentContainer);
-    
+
     console.log(`内容直接切换完成: ${courseId} - Part ${part}`);
 }
 
@@ -1861,7 +1932,7 @@ function performDirectSwitch(courseId, part, contentContainer, breadcrumb) {
 function getExitAnimationClass() {
     const type = ContentSwitcher.currentAnimationType;
     const direction = ContentSwitcher.switchDirection;
-    
+
     switch (type) {
         case 'slide':
             return direction === 'left' ? 'content-slide-exit-left' : 'content-slide-exit-right';
@@ -1881,7 +1952,7 @@ function getExitAnimationClass() {
 function getEnterAnimationClass() {
     const type = ContentSwitcher.currentAnimationType;
     const direction = ContentSwitcher.switchDirection;
-    
+
     switch (type) {
         case 'slide':
             return direction === 'left' ? 'content-slide-enter-left' : 'content-slide-enter-right';
@@ -1902,12 +1973,12 @@ function getEnterAnimationClass() {
  */
 function updateBreadcrumbWithAnimation(courseId, part, breadcrumb) {
     breadcrumb.classList.add('breadcrumb-updating');
-    
+
     setTimeout(() => {
         updateContentBreadcrumb(courseId, part, breadcrumb);
         breadcrumb.classList.remove('breadcrumb-updating');
         breadcrumb.classList.add('breadcrumb-updated');
-        
+
         setTimeout(() => {
             breadcrumb.classList.remove('breadcrumb-updated');
         }, 400);
@@ -1923,17 +1994,17 @@ function updateBreadcrumbWithAnimation(courseId, part, breadcrumb) {
 function renderNewContent(courseId, part, contentContainer) {
     // 清理之前的音频控件
     cleanupPreviousAudioControls();
-    
+
     // 获取课程数据
     const course = AppState.courses.find(c => c.id === courseId);
     if (!course) {
         showContentError(contentContainer, '找不到指定的课程');
         return;
     }
-    
+
     // 获取内容数据
     const contentData = getPartContent(courseId, part);
-    
+
     if (part === 'A') {
         renderPartAContent(contentContainer, course, contentData);
     } else if (part === 'B') {
@@ -1948,7 +2019,7 @@ function renderNewContent(courseId, part, contentContainer) {
  */
 function stopAllAudioPlayback() {
     let stoppedCount = 0;
-    
+
     // 使用AudioPlayerManager停止所有播放器
     if (window.AudioPlayerManager) {
         AudioPlayerManager.players.forEach((player, audioId) => {
@@ -1963,7 +2034,7 @@ function stopAllAudioPlayback() {
             }
         });
     }
-    
+
     // 备用方案：直接操作DOM中的音频控件
     const audioControls = document.querySelectorAll('.audio-controls[data-audio-id]');
     audioControls.forEach(control => {
@@ -1980,7 +2051,7 @@ function stopAllAudioPlayback() {
             }
         }
     });
-    
+
     console.log(`已停止 ${stoppedCount} 个音频播放器`);
 }
 
@@ -1995,7 +2066,7 @@ function triggerContentSwitchComplete(courseId, part) {
         detail: { courseId, part }
     });
     document.dispatchEvent(event);
-    
+
     // 触发状态管理事件
     triggerStateEvent('contentSwitch', {
         courseId: courseId,
@@ -2010,14 +2081,14 @@ function triggerContentSwitchComplete(courseId, part) {
  */
 function addParagraphEnterAnimations(container) {
     const paragraphs = container.querySelectorAll('.paragraph-item');
-    
+
     paragraphs.forEach((paragraph, index) => {
         // 添加进入动画类
         paragraph.classList.add('paragraph-enter');
-        
+
         // 设置动画延迟
         paragraph.style.animationDelay = `${(index + 1) * 0.1}s`;
-        
+
         // 动画完成后清理类名
         setTimeout(() => {
             paragraph.classList.remove('paragraph-enter');
@@ -2032,10 +2103,10 @@ function addParagraphEnterAnimations(container) {
  */
 function addAudioControlsEnterAnimations(container) {
     const audioControls = container.querySelectorAll('.audio-controls');
-    
+
     audioControls.forEach((control, index) => {
         control.classList.add('audio-controls-enter');
-        
+
         setTimeout(() => {
             control.classList.remove('audio-controls-enter');
         }, 400 + (index * 50));
@@ -2054,7 +2125,7 @@ function renderContentDisplay(courseId, part) {
 function cleanupPreviousAudioControls() {
     // 获取所有当前的音频控件
     const audioControls = document.querySelectorAll('.audio-controls[data-audio-id]');
-    
+
     audioControls.forEach(control => {
         const audioId = control.dataset.audioId;
         if (audioId) {
@@ -2062,7 +2133,7 @@ function cleanupPreviousAudioControls() {
             AudioPlayerManager.destroyPlayer(audioId);
         }
     });
-    
+
     console.log(`清理了 ${audioControls.length} 个音频控件`);
 }
 
@@ -2070,7 +2141,7 @@ function cleanupPreviousAudioControls() {
 function updateContentBreadcrumb(courseId, part, breadcrumb) {
     const course = AppState.courses.find(c => c.id === courseId);
     const courseName = course ? course.name : courseId;
-    
+
     breadcrumb.innerHTML = `
         <span class="breadcrumb-item">${courseName}</span>
         <span class="breadcrumb-separator">›</span>
@@ -2103,28 +2174,28 @@ function showContentError(container, message) {
 // 渲染Part A内容
 function renderPartAContent(container, course, contentData) {
     const partAData = contentData || [];
-    
+
     if (partAData.length === 0) {
         showContentError(container, 'Part A 没有可用内容');
         return;
     }
-    
+
     let paragraphsHTML = '';
     const audioInitTasks = []; // 存储音频初始化任务
-    
+
     partAData.forEach((paragraphData, index) => {
         const paragraphNum = paragraphData.paragraph || (index + 1);
         const audioFile = paragraphData.audioFile;
-        
+
         // 验证音频文件路径
         const validAudioFile = audioFile && validateAudioFilePath(audioFile);
-        
+
         // 获取文本内容
         const originalText = paragraphData.originalText || '暂无原文内容';
         const jyutpingText = paragraphData.jyutping || '暂无粤拼标注';
-        
+
         const audioId = `part-a-${course.id}-${paragraphNum}`;
-        
+
         paragraphsHTML += `
             <div class="paragraph-item">
                 <div class="paragraph-header">
@@ -2139,7 +2210,7 @@ function renderPartAContent(container, course, contentData) {
                 ${validAudioFile ? createAudioControls(audioFile, audioId) : createNoAudioMessage(`第${paragraphNum}段`)}
             </div>
         `;
-        
+
         // 记录需要初始化的音频控件
         if (validAudioFile) {
             audioInitTasks.push({
@@ -2148,7 +2219,7 @@ function renderPartAContent(container, course, contentData) {
             });
         }
     });
-    
+
     container.innerHTML = `
         <div class="part-a-content">
             <div class="part-header">
@@ -2161,13 +2232,13 @@ function renderPartAContent(container, course, contentData) {
             </div>
         </div>
     `;
-    
+
     // 添加段落进入动画
     setTimeout(() => {
         addParagraphEnterAnimations(container);
         addAudioControlsEnterAnimations(container);
     }, 50);
-    
+
     // 初始化所有音频控件
     if (audioInitTasks.length > 0) {
         // 使用setTimeout确保DOM元素已经渲染
@@ -2183,49 +2254,49 @@ function renderPartAContent(container, course, contentData) {
 function renderPartBContent(container, course, contentData) {
     // 确保 contentData 是数组格式
     const partBData = Array.isArray(contentData) ? contentData : [];
-    
+
     // 验证课程对象
     if (!course || !course.id || !course.name) {
         showContentError(container, 'Part B 课程信息无效');
         return;
     }
-    
+
     if (partBData.length === 0) {
         showContentError(container, 'Part B 没有可用内容');
         return;
     }
-    
+
     let paragraphsHTML = '';
     const audioInitTasks = []; // 存储音频初始化任务
-    
+
     partBData.forEach((paragraphData, index) => {
         // 验证段落数据结构
         if (!paragraphData || typeof paragraphData !== 'object') {
             console.warn(`Part B 段落 ${index + 1} 数据格式无效:`, paragraphData);
             return;
         }
-        
+
         // 获取段落编号，优先使用数据中的编号，否则使用索引+1
-        const paragraphNum = (typeof paragraphData.paragraph === 'number' && paragraphData.paragraph > 0) 
-            ? paragraphData.paragraph 
+        const paragraphNum = (typeof paragraphData.paragraph === 'number' && paragraphData.paragraph > 0)
+            ? paragraphData.paragraph
             : (index + 1);
-        
+
         const audioFile = paragraphData.audioFile;
-        
+
         // 验证音频文件路径
         const validAudioFile = audioFile && validateAudioFilePath(audioFile);
-        
+
         // 获取文本内容，确保有默认值
-        const originalText = (paragraphData.originalText && paragraphData.originalText.trim()) 
-            ? paragraphData.originalText.trim() 
+        const originalText = (paragraphData.originalText && paragraphData.originalText.trim())
+            ? paragraphData.originalText.trim()
             : '暂无原文内容';
-        const jyutpingText = (paragraphData.jyutping && paragraphData.jyutping.trim()) 
-            ? paragraphData.jyutping.trim() 
+        const jyutpingText = (paragraphData.jyutping && paragraphData.jyutping.trim())
+            ? paragraphData.jyutping.trim()
             : '暂无粤拼标注';
-        
+
         // 生成唯一的音频ID
         const audioId = `part-b-${course.id}-${paragraphNum}`;
-        
+
         paragraphsHTML += `
             <div class="paragraph-item" data-paragraph="${paragraphNum}">
                 <div class="paragraph-header">
@@ -2240,7 +2311,7 @@ function renderPartBContent(container, course, contentData) {
                 ${validAudioFile ? createAudioControls(audioFile, audioId) : createNoAudioMessage(`第${paragraphNum}段`)}
             </div>
         `;
-        
+
         // 记录需要初始化的音频控件
         if (validAudioFile) {
             audioInitTasks.push({
@@ -2250,13 +2321,13 @@ function renderPartBContent(container, course, contentData) {
             });
         }
     });
-    
+
     // 如果没有有效的段落，显示错误
     if (!paragraphsHTML.trim()) {
         showContentError(container, 'Part B 没有有效的段落内容');
         return;
     }
-    
+
     container.innerHTML = `
         <div class="part-b-content">
             <div class="part-header">
@@ -2269,13 +2340,13 @@ function renderPartBContent(container, course, contentData) {
             </div>
         </div>
     `;
-    
+
     // 添加段落进入动画
     setTimeout(() => {
         addParagraphEnterAnimations(container);
         addAudioControlsEnterAnimations(container);
     }, 50);
-    
+
     // 初始化所有音频控件
     if (audioInitTasks.length > 0) {
         // 使用setTimeout确保DOM元素已经渲染
@@ -2290,7 +2361,7 @@ function renderPartBContent(container, course, contentData) {
             });
         }, 100);
     }
-    
+
     console.log(`Part B 渲染完成: ${course.name}, ${partBData.length} 个段落, ${audioInitTasks.length} 个音频控件`);
 }
 
@@ -2300,7 +2371,7 @@ function createAudioControls(audioFile, audioId) {
     const isPreloaded = AudioLazyLoader.isLoaded(audioFile);
     const statusText = isPreloaded ? '准备就绪' : '点击播放';
     const preloadedClass = isPreloaded ? ' preloaded' : '';
-    
+
     return `
         <div class="audio-controls enhanced${preloadedClass}" data-audio-id="${audioId}" data-audio-file="${audioFile}">
             <div class="audio-main-controls">
@@ -2369,23 +2440,23 @@ class AudioPlayer {
         this.isLoading = false;
         this.hasError = false;
         this.currentState = 'stopped'; // 'stopped', 'playing', 'paused', 'loading', 'error'
-        
+
         // UI元素引用
         this.controlsContainer = null;
         this.playBtn = null;
         this.pauseBtn = null;
         this.stopBtn = null;
         this.statusDiv = null;
-        
+
         // 事件回调
         this.onStateChange = null;
         this.onError = null;
         this.onLoadStart = null;
         this.onLoadEnd = null;
-        
+
         this.init();
     }
-    
+
     /**
      * 初始化音频播放器
      */
@@ -2394,53 +2465,53 @@ class AudioPlayer {
             // 创建Audio对象
             this.audio = new Audio();
             this.audio.preload = 'none'; // 改为none，使用懒加载
-            
+
             // 绑定音频事件
             this.bindAudioEvents();
-            
+
             // 获取UI元素
             this.getUIElements();
-            
+
             // 绑定UI事件
             this.bindUIEvents();
-            
+
             // 初始状态设置
             this.setState('stopped');
             this.updateStatus('点击播放');
-            
+
             console.log(`AudioPlayer初始化完成: ${this.audioId}`);
-            
+
         } catch (error) {
             console.error(`AudioPlayer初始化失败: ${this.audioId}`, error);
             this.handleError('初始化失败');
         }
     }
-    
+
     /**
      * 绑定音频事件
      */
     bindAudioEvents() {
         if (!this.audio) return;
-        
+
         // 加载开始
         this.audio.addEventListener('loadstart', () => {
             this.setLoadingState(true);
             if (this.onLoadStart) this.onLoadStart();
         });
-        
+
         // 可以播放
         this.audio.addEventListener('canplay', () => {
             this.setLoadingState(false);
             this.updateStatus('准备就绪');
             if (this.onLoadEnd) this.onLoadEnd();
         });
-        
+
         // 播放开始
         this.audio.addEventListener('play', () => {
             this.setState('playing');
             this.updateStatus('播放中');
         });
-        
+
         // 暂停
         this.audio.addEventListener('pause', () => {
             if (this.currentState !== 'stopped') {
@@ -2448,34 +2519,34 @@ class AudioPlayer {
                 this.updateStatus('已暂停');
             }
         });
-        
+
         // 播放结束
         this.audio.addEventListener('ended', () => {
             this.setState('stopped');
             this.updateStatus('播放完成');
         });
-        
+
         // 错误处理
         this.audio.addEventListener('error', (e) => {
             const errorMsg = this.getAudioErrorMessage(e);
             this.handleError(errorMsg);
         });
-        
+
         // 加载错误
         this.audio.addEventListener('abort', () => {
             this.handleError('音频加载被中断');
         });
-        
+
         // 网络状态变化
         this.audio.addEventListener('stalled', () => {
             this.updateStatus('网络缓慢，正在缓冲...');
         });
-        
+
         // 等待数据
         this.audio.addEventListener('waiting', () => {
             this.updateStatus('正在缓冲...');
         });
-        
+
         // 可以继续播放
         this.audio.addEventListener('canplaythrough', () => {
             if (this.currentState === 'loading') {
@@ -2483,24 +2554,24 @@ class AudioPlayer {
             }
         });
     }
-    
+
     /**
      * 获取UI元素引用
      */
     getUIElements() {
         this.controlsContainer = document.querySelector(`[data-audio-id="${this.audioId}"]`);
-        
+
         if (!this.controlsContainer) {
             console.warn(`找不到音频控件容器: ${this.audioId}`);
             return;
         }
-        
+
         this.playBtn = this.controlsContainer.querySelector('.play-btn');
         this.pauseBtn = this.controlsContainer.querySelector('.pause-btn');
         this.stopBtn = this.controlsContainer.querySelector('.stop-btn');
         this.statusDiv = this.controlsContainer.querySelector('.audio-status');
     }
-    
+
     /**
      * 绑定UI事件
      */
@@ -2508,22 +2579,22 @@ class AudioPlayer {
         if (this.playBtn) {
             this.playBtn.addEventListener('click', () => this.play());
         }
-        
+
         if (this.pauseBtn) {
             this.pauseBtn.addEventListener('click', () => this.pause());
         }
-        
+
         if (this.stopBtn) {
             this.stopBtn.addEventListener('click', () => this.stop());
         }
     }
-    
+
     /**
      * 设置音频源
      */
     setAudioSource(audioFile) {
         if (!this.audio || !audioFile) return;
-        
+
         try {
             this.audio.src = audioFile;
             this.audioFile = audioFile;
@@ -2532,7 +2603,7 @@ class AudioPlayer {
             this.handleError('音频文件无效');
         }
     }
-    
+
     /**
      * 播放音频（使用懒加载）
      */
@@ -2541,46 +2612,47 @@ class AudioPlayer {
             console.warn(`无法播放音频: ${this.audioId}`);
             return false;
         }
-        
+
         try {
             // 首先停止所有其他音频播放
             AudioPlayerManager.stopOtherPlayers(this.audioId);
-            
+
             this.setState('loading');
             this.updateStatus('正在加载音频...');
-            
+
             // 记录开始时间用于性能监控
             const startTime = performance.now();
-            
+
             // 解析并验证音频文件路径
             const resolvedAudioPath = this.resolveAudioFilePath(this.audioFile);
             console.log(`解析音频路径: ${this.audioFile} -> ${resolvedAudioPath}`);
-            
+
             // 使用懒加载系统加载音频
             const loadSuccess = await AudioLazyLoader.lazyLoadAudio(resolvedAudioPath);
-            
+
             if (!loadSuccess) {
                 throw new Error('音频懒加载失败');
             }
-            
+
             // 设置音频源（如果还没有设置）
             if (!this.audio.src || !this.audio.src.endsWith(resolvedAudioPath)) {
                 this.audio.src = resolvedAudioPath;
             }
-            
+
             // 等待音频准备就绪
             await this.waitForAudioReady();
-            
+
             // 播放音频
             await this.audio.play();
-            
+
             // 记录性能指标
             const loadTime = performance.now() - startTime;
             PerformanceMonitor.recordAudioLoadTime(resolvedAudioPath, loadTime);
-            
+
             console.log(`音频播放成功: ${this.audioId} - ${resolvedAudioPath}`);
+            console.log(`音频实际src: ${this.audio.src}`);
             return true;
-            
+
         } catch (error) {
             console.error(`播放音频失败: ${this.audioId}`, error);
             PerformanceMonitor.recordError('audioLoad', error);
@@ -2588,30 +2660,16 @@ class AudioPlayer {
             return false;
         }
     }
-    
+
     /**
      * 解析音频文件路径
      * 确保路径格式正确，支持新的数据结构
      */
     resolveAudioFilePath(audioFile) {
-        if (!audioFile) {
-            throw new Error('音频文件路径为空');
-        }
-        
-        // 如果路径已经是完整的相对路径，直接返回
-        if (audioFile.startsWith('Sound/') || audioFile.startsWith('./Sound/')) {
-            return audioFile.startsWith('./') ? audioFile : './' + audioFile;
-        }
-        
-        // 如果是绝对路径，直接返回
-        if (audioFile.startsWith('http://') || audioFile.startsWith('https://') || audioFile.startsWith('/')) {
-            return audioFile;
-        }
-        
-        // 否则假设是相对于Sound目录的路径
-        return './Sound/' + audioFile;
+        // 使用全局的路径解析函数，确保一致性
+        return resolveAudioFilePath(audioFile);
     }
-    
+
     /**
      * 等待音频准备就绪
      */
@@ -2621,30 +2679,30 @@ class AudioPlayer {
                 resolve();
                 return;
             }
-            
+
             const timeout = setTimeout(() => {
                 reject(new Error('音频准备超时'));
             }, 5000);
-            
+
             const onCanPlay = () => {
                 clearTimeout(timeout);
                 this.audio.removeEventListener('canplay', onCanPlay);
                 this.audio.removeEventListener('error', onError);
                 resolve();
             };
-            
+
             const onError = (e) => {
                 clearTimeout(timeout);
                 this.audio.removeEventListener('canplay', onCanPlay);
                 this.audio.removeEventListener('error', onError);
                 reject(new Error('音频加载错误'));
             };
-            
+
             this.audio.addEventListener('canplay', onCanPlay);
             this.audio.addEventListener('error', onError);
         });
     }
-    
+
     /**
      * 暂停音频
      */
@@ -2652,7 +2710,7 @@ class AudioPlayer {
         if (!this.audio || this.currentState !== 'playing') {
             return false;
         }
-        
+
         try {
             this.audio.pause();
             return true;
@@ -2662,7 +2720,7 @@ class AudioPlayer {
             return false;
         }
     }
-    
+
     /**
      * 停止音频
      */
@@ -2670,7 +2728,7 @@ class AudioPlayer {
         if (!this.audio) {
             return false;
         }
-        
+
         try {
             this.audio.pause();
             this.audio.currentTime = 0;
@@ -2683,35 +2741,35 @@ class AudioPlayer {
             return false;
         }
     }
-    
+
     /**
      * 设置播放状态
      */
     setState(newState) {
         const oldState = this.currentState;
         this.currentState = newState;
-        
+
         // 更新UI状态
         this.updateUIState(newState);
-        
+
         // 触发状态变化回调
         if (this.onStateChange) {
             this.onStateChange(newState, oldState);
         }
-        
+
         console.log(`AudioPlayer状态变化: ${this.audioId} ${oldState} -> ${newState}`);
     }
-    
+
     /**
      * 更新UI状态
      */
     updateUIState(state) {
         if (!this.playBtn || !this.pauseBtn) return;
-        
+
         // 重置所有按钮状态
         this.playBtn.style.display = 'none';
         this.pauseBtn.style.display = 'none';
-        
+
         // 根据状态显示对应按钮
         switch (state) {
             case 'stopped':
@@ -2720,25 +2778,25 @@ class AudioPlayer {
                 this.playBtn.style.display = 'inline-flex';
                 this.setButtonsEnabled(state !== 'error');
                 break;
-                
+
             case 'playing':
                 this.pauseBtn.style.display = 'inline-flex';
                 this.setButtonsEnabled(true);
                 break;
-                
+
             case 'loading':
                 this.playBtn.style.display = 'inline-flex';
                 this.setButtonsEnabled(false);
                 break;
         }
     }
-    
+
     /**
      * 设置按钮启用状态
      */
     setButtonsEnabled(enabled) {
         const buttons = [this.playBtn, this.pauseBtn, this.stopBtn];
-        
+
         buttons.forEach(btn => {
             if (btn) {
                 btn.disabled = !enabled;
@@ -2750,13 +2808,13 @@ class AudioPlayer {
             }
         });
     }
-    
+
     /**
      * 设置加载状态
      */
     setLoadingState(isLoading) {
         this.isLoading = isLoading;
-        
+
         if (this.controlsContainer) {
             if (isLoading) {
                 this.controlsContainer.classList.add('loading');
@@ -2765,7 +2823,7 @@ class AudioPlayer {
             }
         }
     }
-    
+
     /**
      * 更新状态显示
      */
@@ -2774,7 +2832,7 @@ class AudioPlayer {
             this.statusDiv.textContent = message;
         }
     }
-    
+
     /**
      * 处理错误
      */
@@ -2782,27 +2840,27 @@ class AudioPlayer {
         this.hasError = true;
         this.setState('error');
         this.updateStatus(`错误: ${errorMessage}`);
-        
+
         if (this.controlsContainer) {
             this.controlsContainer.classList.add('error');
         }
-        
+
         if (this.onError) {
             this.onError(errorMessage);
         }
-        
+
         console.error(`AudioPlayer错误: ${this.audioId} - ${errorMessage}`);
     }
-    
+
     /**
      * 获取音频错误消息
      */
     getAudioErrorMessage(event) {
         if (!this.audio) return '未知错误';
-        
+
         const error = this.audio.error;
         if (!error) return '音频加载失败';
-        
+
         switch (error.code) {
             case error.MEDIA_ERR_ABORTED:
                 return '音频加载被中断';
@@ -2816,7 +2874,7 @@ class AudioPlayer {
                 return '音频播放出现未知错误';
         }
     }
-    
+
     /**
      * 获取播放错误消息
      */
@@ -2831,21 +2889,21 @@ class AudioPlayer {
             return '播放失败，请重试';
         }
     }
-    
+
     /**
      * 重置错误状态
      */
     resetError() {
         this.hasError = false;
-        
+
         if (this.controlsContainer) {
             this.controlsContainer.classList.remove('error');
         }
-        
+
         this.setState('stopped');
         this.updateStatus('准备就绪');
     }
-    
+
     /**
      * 重试播放
      */
@@ -2854,38 +2912,38 @@ class AudioPlayer {
             console.warn(`无法重试，音频对象不存在: ${this.audioId}`);
             return false;
         }
-        
+
         try {
             console.log(`重试播放音频: ${this.audioId}`);
-            
+
             // 重置错误状态
             this.resetError();
-            
+
             // 重新设置音频源
             this.audio.src = '';
             this.audio.src = this.audioFile;
-            
+
             // 尝试播放
             return await this.play();
-            
+
         } catch (error) {
             console.error(`重试播放失败: ${this.audioId}`, error);
             this.handleError('重试失败');
             return false;
         }
     }
-    
+
     /**
      * 检查浏览器音频支持
      */
     checkBrowserSupport() {
         if (!this.audio) return false;
-        
+
         const canPlayOpus = this.audio.canPlayType('audio/opus');
         const canPlayMp3 = this.audio.canPlayType('audio/mpeg');
         const canPlayWav = this.audio.canPlayType('audio/wav');
         const canPlayOgg = this.audio.canPlayType('audio/ogg');
-        
+
         return {
             opus: canPlayOpus !== '',
             mp3: canPlayMp3 !== '',
@@ -2894,17 +2952,17 @@ class AudioPlayer {
             hasSupport: canPlayOpus !== '' || canPlayMp3 !== '' || canPlayWav !== '' || canPlayOgg !== ''
         };
     }
-    
+
     /**
      * 获取音频格式建议
      */
     getFormatSuggestion() {
         const support = this.checkBrowserSupport();
-        
+
         if (!support.hasSupport) {
             return '您的浏览器不支持音频播放，请更新浏览器或使用其他浏览器';
         }
-        
+
         if (!support.opus) {
             if (support.mp3) {
                 return '建议使用MP3格式的音频文件以获得更好的兼容性';
@@ -2914,10 +2972,10 @@ class AudioPlayer {
                 return '建议使用OGG格式的音频文件';
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * 获取当前状态
      */
@@ -2931,7 +2989,7 @@ class AudioPlayer {
             duration: this.audio ? this.audio.duration : 0
         };
     }
-    
+
     /**
      * 销毁播放器
      */
@@ -2941,20 +2999,20 @@ class AudioPlayer {
             this.audio.src = '';
             this.audio = null;
         }
-        
+
         // 清除UI引用
         this.controlsContainer = null;
         this.playBtn = null;
         this.pauseBtn = null;
         this.stopBtn = null;
         this.statusDiv = null;
-        
+
         // 清除回调
         this.onStateChange = null;
         this.onError = null;
         this.onLoadStart = null;
         this.onLoadEnd = null;
-        
+
         console.log(`AudioPlayer已销毁: ${this.audioId}`);
     }
 }
@@ -2964,7 +3022,7 @@ class AudioPlayer {
 // 全局音频播放器实例管理
 const AudioPlayerManager = {
     players: new Map(),
-    
+
     /**
      * 创建音频播放器实例
      */
@@ -2973,29 +3031,29 @@ const AudioPlayerManager = {
         if (this.players.has(audioId)) {
             this.destroyPlayer(audioId);
         }
-        
+
         const player = new AudioPlayer(audioFile, audioId);
         this.players.set(audioId, player);
-        
+
         // 设置播放器事件回调
         player.onStateChange = (newState, oldState) => {
             this.handlePlayerStateChange(audioId, newState, oldState);
         };
-        
+
         player.onError = (errorMessage) => {
             this.handlePlayerError(audioId, errorMessage);
         };
-        
+
         return player;
     },
-    
+
     /**
      * 获取音频播放器实例
      */
     getPlayer(audioId) {
         return this.players.get(audioId);
     },
-    
+
     /**
      * 销毁音频播放器实例
      */
@@ -3006,7 +3064,7 @@ const AudioPlayerManager = {
             this.players.delete(audioId);
         }
     },
-    
+
     /**
      * 停止所有其他播放器
      */
@@ -3023,33 +3081,33 @@ const AudioPlayerManager = {
                 }
             }
         });
-        
+
         if (stoppedCount > 0) {
             console.log(`已停止 ${stoppedCount} 个其他音频播放器`);
         }
     },
-    
+
     /**
      * 处理播放器状态变化
      */
     handlePlayerStateChange(audioId, newState, oldState) {
         console.log(`播放器状态变化: ${audioId} ${oldState} -> ${newState}`);
-        
+
         // 当开始播放时，停止其他播放器
         if (newState === 'playing') {
             this.stopOtherPlayers(audioId);
         }
     },
-    
+
     /**
      * 处理播放器错误
      */
     handlePlayerError(audioId, errorMessage) {
         console.error(`播放器错误: ${audioId} - ${errorMessage}`);
-        
+
         const player = this.getPlayer(audioId);
         if (!player) return;
-        
+
         // 检查是否是网络错误，如果是则提供重试选项
         if (this.isNetworkError(errorMessage)) {
             this.showRetryOption(audioId, errorMessage);
@@ -3058,67 +3116,67 @@ const AudioPlayerManager = {
         } else {
             this.showGenericError(audioId, errorMessage);
         }
-        
+
         // 记录错误统计
         this.recordError(audioId, errorMessage);
     },
-    
+
     /**
      * 判断是否为网络错误
      */
     isNetworkError(errorMessage) {
         const networkErrorKeywords = ['网络错误', '无法加载', '加载失败', 'network', 'load'];
-        return networkErrorKeywords.some(keyword => 
+        return networkErrorKeywords.some(keyword =>
             errorMessage.toLowerCase().includes(keyword.toLowerCase())
         );
     },
-    
+
     /**
      * 判断是否为格式错误
      */
     isFormatError(errorMessage) {
         const formatErrorKeywords = ['不支持', '格式', 'format', 'supported'];
-        return formatErrorKeywords.some(keyword => 
+        return formatErrorKeywords.some(keyword =>
             errorMessage.toLowerCase().includes(keyword.toLowerCase())
         );
     },
-    
+
     /**
      * 显示重试选项
      */
     showRetryOption(audioId, errorMessage) {
         const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
         if (!controlsContainer) return;
-        
+
         // 添加重试按钮
         const existingRetryBtn = controlsContainer.querySelector('.retry-btn');
         if (existingRetryBtn) return; // 已经有重试按钮了
-        
+
         const retryBtn = document.createElement('button');
         retryBtn.className = 'audio-btn retry-btn';
         retryBtn.innerHTML = `
             <span class="btn-icon">🔄</span>
             <span class="btn-text">重试</span>
         `;
-        
+
         retryBtn.addEventListener('click', () => {
             this.retryPlayer(audioId);
         });
-        
+
         // 插入重试按钮
         const statusDiv = controlsContainer.querySelector('.audio-status');
         if (statusDiv) {
             controlsContainer.insertBefore(retryBtn, statusDiv);
         }
     },
-    
+
     /**
      * 显示格式错误
      */
     showFormatError(audioId, player) {
         const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
         if (!controlsContainer) return;
-        
+
         const suggestion = player.getFormatSuggestion();
         if (suggestion) {
             const statusDiv = controlsContainer.querySelector('.audio-status');
@@ -3132,14 +3190,14 @@ const AudioPlayerManager = {
             }
         }
     },
-    
+
     /**
      * 显示通用错误
      */
     showGenericError(audioId, errorMessage) {
         const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
         if (!controlsContainer) return;
-        
+
         const statusDiv = controlsContainer.querySelector('.audio-status');
         if (statusDiv) {
             statusDiv.innerHTML = `
@@ -3150,14 +3208,14 @@ const AudioPlayerManager = {
             `;
         }
     },
-    
+
     /**
      * 重试播放器
      */
     async retryPlayer(audioId) {
         const player = this.getPlayer(audioId);
         if (!player) return;
-        
+
         const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
         if (controlsContainer) {
             // 移除重试按钮
@@ -3165,14 +3223,14 @@ const AudioPlayerManager = {
             if (retryBtn) {
                 retryBtn.remove();
             }
-            
+
             // 显示重试状态
             const statusDiv = controlsContainer.querySelector('.audio-status');
             if (statusDiv) {
                 statusDiv.textContent = '正在重试...';
             }
         }
-        
+
         const success = await player.retry();
         if (!success) {
             // 重试失败，重新显示重试按钮
@@ -3181,7 +3239,7 @@ const AudioPlayerManager = {
             }, 1000);
         }
     },
-    
+
     /**
      * 记录错误统计
      */
@@ -3189,14 +3247,14 @@ const AudioPlayerManager = {
         if (!this.errorStats) {
             this.errorStats = new Map();
         }
-        
+
         const errorKey = `${audioId}:${errorMessage}`;
         const count = this.errorStats.get(errorKey) || 0;
         this.errorStats.set(errorKey, count + 1);
-        
+
         console.log(`错误统计: ${errorKey} 发生了 ${count + 1} 次`);
     },
-    
+
     /**
      * 销毁所有播放器
      */
@@ -3206,7 +3264,7 @@ const AudioPlayerManager = {
         });
         this.players.clear();
     },
-    
+
     /**
      * 获取播放器统计信息
      */
@@ -3218,7 +3276,7 @@ const AudioPlayerManager = {
             stoppedCount: 0,
             errorCount: 0
         };
-        
+
         this.players.forEach(player => {
             switch (player.currentState) {
                 case 'playing':
@@ -3235,7 +3293,7 @@ const AudioPlayerManager = {
                     break;
             }
         });
-        
+
         return stats;
     }
 };
@@ -3243,50 +3301,60 @@ const AudioPlayerManager = {
 // 初始化音频控件
 async function initAudioControls(audioId, audioFile) {
     console.log(`初始化音频控件: ${audioId}, 文件: ${audioFile}`);
-    
+
     // 验证参数
     if (!audioId || !audioFile) {
         console.error('初始化音频控件失败：缺少必要参数');
         return;
     }
-    
+
+    // 调试：显示路径解析过程
+    try {
+        const resolvedPath = resolveAudioFilePath(audioFile);
+        console.log(`音频路径解析: ${audioFile} -> ${resolvedPath}`);
+        console.log(`当前页面路径: ${window.location.pathname}`);
+        console.log(`基础路径: ${getBasePath()}`);
+    } catch (error) {
+        console.error(`音频路径解析失败: ${audioFile}`, error);
+    }
+
     // 检查控件容器是否存在
     const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
     if (!controlsContainer) {
         console.error(`找不到音频控件容器: ${audioId}`);
         return;
     }
-    
+
     try {
         // 显示初始化状态
         showAudioLoading(controlsContainer, true);
-        
+
         // 预检查音频文件
         const preCheckResult = await preCheckAudioFile(audioFile);
-        
+
         if (!preCheckResult.valid) {
             console.warn(`音频文件预检查失败: ${audioId} - ${preCheckResult.error}`);
             showUserFriendlyError(controlsContainer, preCheckResult.error);
             return;
         }
-        
+
         // 创建AudioPlayer实例
         const player = AudioPlayerManager.createPlayer(audioId, audioFile);
-        
+
         if (!player) {
             console.error(`创建音频播放器失败: ${audioId}`);
             showAudioError(controlsContainer, '音频播放器初始化失败');
             return;
         }
-        
+
         // 设置播放器回调
         setupPlayerCallbacks(player, controlsContainer);
-        
+
         // 隐藏加载状态
         showAudioLoading(controlsContainer, false);
-        
+
         console.log(`音频播放器创建成功: ${audioId}, 时长: ${preCheckResult.duration || '未知'}秒`);
-        
+
     } catch (error) {
         console.error(`初始化音频控件时出错: ${audioId}`, error);
         showUserFriendlyError(controlsContainer, '音频控件初始化失败');
@@ -3296,24 +3364,24 @@ async function initAudioControls(audioId, audioFile) {
 // 设置播放器回调函数
 function setupPlayerCallbacks(player, controlsContainer) {
     const audioId = player.audioId;
-    
+
     // 状态变化回调
     player.onStateChange = (newState, oldState) => {
         console.log(`播放器状态变化: ${audioId} ${oldState} -> ${newState}`);
         updateAudioControlsUI(controlsContainer, newState);
     };
-    
+
     // 错误回调
     player.onError = (errorMessage) => {
         console.error(`播放器错误: ${audioId} - ${errorMessage}`);
         showAudioError(controlsContainer, errorMessage);
     };
-    
+
     // 加载开始回调
     player.onLoadStart = () => {
         showAudioLoading(controlsContainer, true);
     };
-    
+
     // 加载结束回调
     player.onLoadEnd = () => {
         showAudioLoading(controlsContainer, false);
@@ -3323,12 +3391,12 @@ function setupPlayerCallbacks(player, controlsContainer) {
 // 更新音频控件UI状态
 function updateAudioControlsUI(controlsContainer, state) {
     if (!controlsContainer) return;
-    
+
     const statusDiv = controlsContainer.querySelector('.audio-status');
-    
+
     // 更新容器类名
     controlsContainer.className = `audio-controls ${state}`;
-    
+
     // 更新状态文本
     if (statusDiv) {
         switch (state) {
@@ -3362,14 +3430,14 @@ function updateAudioControlsUI(controlsContainer, state) {
 // 显示音频加载状态
 function showAudioLoading(controlsContainer, isLoading) {
     if (!controlsContainer) return;
-    
+
     const loadingIndicator = controlsContainer.querySelector('.audio-loading-indicator');
     const statusDiv = controlsContainer.querySelector('.audio-status');
-    
+
     if (loadingIndicator) {
         loadingIndicator.style.display = isLoading ? 'block' : 'none';
     }
-    
+
     if (isLoading) {
         controlsContainer.classList.add('loading');
         if (statusDiv) {
@@ -3384,11 +3452,11 @@ function showAudioLoading(controlsContainer, isLoading) {
 // 显示音频错误
 function showAudioError(controlsContainer, errorMessage) {
     if (!controlsContainer) return;
-    
+
     const statusDiv = controlsContainer.querySelector('.audio-status');
-    
+
     controlsContainer.classList.add('error');
-    
+
     if (statusDiv) {
         statusDiv.innerHTML = `
             <div class="error-message">
@@ -3398,16 +3466,16 @@ function showAudioError(controlsContainer, errorMessage) {
         `;
         statusDiv.className = 'audio-status error';
     }
-    
+
     // 禁用播放和暂停按钮，但保留停止按钮
     const playBtn = controlsContainer.querySelector('.play-btn');
     const pauseBtn = controlsContainer.querySelector('.pause-btn');
-    
+
     if (playBtn) {
         playBtn.disabled = true;
         playBtn.classList.add('disabled');
     }
-    
+
     if (pauseBtn) {
         pauseBtn.disabled = true;
         pauseBtn.classList.add('disabled');
@@ -3419,7 +3487,7 @@ async function checkAudioFileExistsEnhanced(audioPath) {
     return new Promise((resolve) => {
         const audio = new Audio();
         let resolved = false;
-        
+
         const timeout = setTimeout(() => {
             if (!resolved) {
                 resolved = true;
@@ -3430,7 +3498,7 @@ async function checkAudioFileExistsEnhanced(audioPath) {
                 });
             }
         }, 5000); // 5秒超时
-        
+
         audio.oncanplaythrough = () => {
             if (!resolved) {
                 resolved = true;
@@ -3443,7 +3511,7 @@ async function checkAudioFileExistsEnhanced(audioPath) {
                 });
             }
         };
-        
+
         audio.onloadedmetadata = () => {
             if (!resolved) {
                 resolved = true;
@@ -3456,12 +3524,12 @@ async function checkAudioFileExistsEnhanced(audioPath) {
                 });
             }
         };
-        
+
         audio.onerror = (e) => {
             if (!resolved) {
                 resolved = true;
                 clearTimeout(timeout);
-                
+
                 let errorMessage = '未知错误';
                 if (audio.error) {
                     switch (audio.error.code) {
@@ -3479,7 +3547,7 @@ async function checkAudioFileExistsEnhanced(audioPath) {
                             break;
                     }
                 }
-                
+
                 resolve({
                     exists: false,
                     error: errorMessage,
@@ -3487,7 +3555,7 @@ async function checkAudioFileExistsEnhanced(audioPath) {
                 });
             }
         };
-        
+
         audio.src = audioPath;
     });
 }
@@ -3500,7 +3568,7 @@ async function preCheckAudioFile(audioFile) {
             error: '音频文件路径为空'
         };
     }
-    
+
     // 解析音频文件路径
     let resolvedPath;
     try {
@@ -3512,7 +3580,7 @@ async function preCheckAudioFile(audioFile) {
             error: `路径解析失败: ${error.message}`
         };
     }
-    
+
     // 检查文件扩展名
     if (!validateAudioFilePath(resolvedPath)) {
         return {
@@ -3520,10 +3588,10 @@ async function preCheckAudioFile(audioFile) {
             error: '不支持的音频文件格式'
         };
     }
-    
+
     // 检查文件是否存在
     const checkResult = await checkAudioFileExistsEnhanced(resolvedPath);
-    
+
     return {
         valid: checkResult.exists && checkResult.canPlay,
         error: checkResult.error,
@@ -3538,19 +3606,61 @@ function resolveAudioFilePath(audioFile) {
     if (!audioFile) {
         throw new Error('音频文件路径为空');
     }
-    
-    // 如果路径已经是完整的相对路径，直接返回
-    if (audioFile.startsWith('Sound/') || audioFile.startsWith('./Sound/')) {
-        return audioFile.startsWith('./') ? audioFile : './' + audioFile;
-    }
-    
+
     // 如果是绝对路径，直接返回
     if (audioFile.startsWith('http://') || audioFile.startsWith('https://') || audioFile.startsWith('/')) {
         return audioFile;
     }
-    
+
+    // 获取当前页面的基础路径，处理GitHub Pages等部署场景
+    const basePath = getBasePath();
+
+    // 如果路径已经是完整的相对路径，确保使用正确的基础路径
+    if (audioFile.startsWith('Sound/')) {
+        return basePath + audioFile;
+    }
+
+    if (audioFile.startsWith('./Sound/')) {
+        return basePath + audioFile.substring(2); // 移除 './'
+    }
+
     // 否则假设是相对于Sound目录的路径
-    return './Sound/' + audioFile;
+    return basePath + 'Sound/' + audioFile;
+}
+
+// 获取当前页面的基础路径
+function getBasePath() {
+    const currentPath = window.location.pathname;
+    const currentOrigin = window.location.origin;
+
+    // 检测是否为GitHub Pages部署
+    const isGitHubPages = currentOrigin.includes('github.io');
+
+    if (isGitHubPages) {
+        // 对于GitHub Pages，始终使用绝对路径
+        if (currentPath.includes('/jyut')) {
+            // 提取到 /jyut/ 的路径
+            const jyutIndex = currentPath.indexOf('/jyut');
+            const basePath = currentPath.substring(0, jyutIndex + 5); // +5 for '/jyut'
+            return currentOrigin + (basePath.endsWith('/') ? basePath : basePath + '/');
+        }
+        // 如果没有找到 /jyut，假设在根目录
+        return currentOrigin + '/';
+    }
+
+    // 对于本地开发或其他部署
+    if (currentPath === '/' || currentPath === '/index.html') {
+        return './';
+    }
+
+    // 对于子目录部署，使用相对路径
+    const pathSegments = currentPath.split('/').filter(segment => segment.length > 0);
+    if (pathSegments.length > 1) {
+        // 回到根目录
+        return '../'.repeat(pathSegments.length - 1);
+    }
+
+    return './';
 }
 
 // 用户友好的错误提示
@@ -3563,7 +3673,7 @@ function getUserFriendlyErrorMessage(error) {
         '不支持的音频文件格式': '您的浏览器不支持此音频格式，建议使用最新版本的Chrome或Firefox',
         '检查超时': '音频文件加载超时，可能是网络问题或文件过大'
     };
-    
+
     return errorMappings[error] || error;
 }
 
@@ -3571,7 +3681,7 @@ function getUserFriendlyErrorMessage(error) {
 function showUserFriendlyError(controlsContainer, originalError) {
     const friendlyMessage = getUserFriendlyErrorMessage(originalError);
     const statusDiv = controlsContainer.querySelector('.audio-status');
-    
+
     if (statusDiv) {
         statusDiv.innerHTML = `
             <div class="friendly-error">
@@ -3593,12 +3703,12 @@ function optimizeAudioUserExperience() {
         if (event.target.matches('input, textarea, select, [contenteditable]')) {
             return;
         }
-        
+
         const playingPlayer = Array.from(AudioPlayerManager.players.values())
             .find(player => player.currentState === 'playing');
         const availablePlayer = Array.from(AudioPlayerManager.players.values())
             .find(player => !player.hasError);
-        
+
         switch (event.code) {
             case 'Space':
                 // 空格键：播放/暂停当前音频
@@ -3611,7 +3721,7 @@ function optimizeAudioUserExperience() {
                     showKeyboardShortcutFeedback('▶️ 开始播放');
                 }
                 break;
-                
+
             case 'Escape':
                 // Escape键：停止所有音频
                 event.preventDefault();
@@ -3626,7 +3736,7 @@ function optimizeAudioUserExperience() {
                     showKeyboardShortcutFeedback(`⏹️ 已停止 ${stoppedCount} 个音频`);
                 }
                 break;
-                
+
             case 'ArrowLeft':
                 // 左箭头：后退5秒
                 event.preventDefault();
@@ -3636,7 +3746,7 @@ function optimizeAudioUserExperience() {
                     showKeyboardShortcutFeedback('⏪ 后退5秒');
                 }
                 break;
-                
+
             case 'ArrowRight':
                 // 右箭头：前进5秒
                 event.preventDefault();
@@ -3646,7 +3756,7 @@ function optimizeAudioUserExperience() {
                     showKeyboardShortcutFeedback('⏩ 前进5秒');
                 }
                 break;
-                
+
             case 'ArrowUp':
                 // 上箭头：增加音量
                 event.preventDefault();
@@ -3656,7 +3766,7 @@ function optimizeAudioUserExperience() {
                     showKeyboardShortcutFeedback(`🔊 音量: ${Math.round(newVolume * 100)}%`);
                 }
                 break;
-                
+
             case 'ArrowDown':
                 // 下箭头：降低音量
                 event.preventDefault();
@@ -3666,7 +3776,7 @@ function optimizeAudioUserExperience() {
                     showKeyboardShortcutFeedback(`🔉 音量: ${Math.round(newVolume * 100)}%`);
                 }
                 break;
-                
+
             case 'KeyM':
                 // M键：静音/取消静音
                 event.preventDefault();
@@ -3675,7 +3785,7 @@ function optimizeAudioUserExperience() {
                     showKeyboardShortcutFeedback(playingPlayer.audio.muted ? '🔇 已静音' : '🔊 取消静音');
                 }
                 break;
-                
+
             case 'KeyR':
                 // R键：重新播放当前音频
                 event.preventDefault();
@@ -3686,7 +3796,7 @@ function optimizeAudioUserExperience() {
                 break;
         }
     });
-    
+
     // 添加页面可见性变化处理
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
@@ -3707,16 +3817,16 @@ function optimizeAudioUserExperience() {
             });
         }
     });
-    
+
     // 初始化音频进度更新
     initAudioProgressTracking();
-    
+
     // 初始化音量控制
     initVolumeControls();
-    
+
     // 显示键盘快捷键帮助
     createKeyboardShortcutHelp();
-    
+
     console.log('音频用户体验优化已启用');
 }
 
@@ -3727,18 +3837,18 @@ function showKeyboardShortcutFeedback(message) {
     if (existingFeedback) {
         existingFeedback.remove();
     }
-    
+
     // 创建新的反馈元素
     const feedback = document.createElement('div');
     feedback.className = 'keyboard-feedback';
     feedback.textContent = message;
-    
+
     // 添加到页面
     document.body.appendChild(feedback);
-    
+
     // 显示动画
     setTimeout(() => feedback.classList.add('show'), 10);
-    
+
     // 自动隐藏
     setTimeout(() => {
         feedback.classList.remove('show');
@@ -3750,31 +3860,31 @@ function showKeyboardShortcutFeedback(message) {
 function initAudioProgressTracking() {
     // 为所有音频播放器添加进度更新
     const originalCreatePlayer = AudioPlayerManager.createPlayer;
-    AudioPlayerManager.createPlayer = function(audioFile, audioId) {
+    AudioPlayerManager.createPlayer = function (audioFile, audioId) {
         const player = originalCreatePlayer.call(this, audioFile, audioId);
-        
+
         if (player && player.audio) {
             // 添加时间更新监听器
             player.audio.addEventListener('timeupdate', () => {
                 updateAudioProgress(audioId, player.audio);
             });
-            
+
             // 添加加载完成监听器
             player.audio.addEventListener('loadedmetadata', () => {
                 updateAudioDuration(audioId, player.audio);
             });
         }
-        
+
         return player;
     };
-    
+
     // 添加进度条点击事件监听
     document.addEventListener('click', (event) => {
         if (event.target.matches('.progress-bar, .progress-bar *')) {
             const progressBar = event.target.closest('.progress-bar');
             const controlsContainer = progressBar.closest('.audio-controls');
             const audioId = controlsContainer.dataset.audioId;
-            
+
             handleProgressBarClick(event, audioId, progressBar);
         }
     });
@@ -3784,15 +3894,15 @@ function initAudioProgressTracking() {
 function handleProgressBarClick(event, audioId, progressBar) {
     const player = AudioPlayerManager.getPlayer(audioId);
     if (!player || !player.audio || !player.audio.duration) return;
-    
+
     const rect = progressBar.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const progressPercent = clickX / rect.width;
     const newTime = progressPercent * player.audio.duration;
-    
+
     // 设置新的播放位置
     player.audio.currentTime = Math.max(0, Math.min(newTime, player.audio.duration));
-    
+
     // 显示反馈
     const minutes = Math.floor(newTime / 60);
     const seconds = Math.floor(newTime % 60);
@@ -3803,24 +3913,24 @@ function handleProgressBarClick(event, audioId, progressBar) {
 function updateAudioProgress(audioId, audio) {
     const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
     if (!controlsContainer) return;
-    
+
     const progressContainer = controlsContainer.querySelector('.audio-progress');
     if (!progressContainer) return;
-    
+
     const progressFill = progressContainer.querySelector('.progress-fill');
     const currentTimeSpan = progressContainer.querySelector('.current-time');
-    
+
     if (audio.duration && !isNaN(audio.duration)) {
         const progress = (audio.currentTime / audio.duration) * 100;
-        
+
         if (progressFill) {
             progressFill.style.width = `${progress}%`;
         }
-        
+
         if (currentTimeSpan) {
             currentTimeSpan.textContent = formatTime(audio.currentTime);
         }
-        
+
         // 显示进度条
         progressContainer.style.display = 'flex';
     }
@@ -3830,7 +3940,7 @@ function updateAudioProgress(audioId, audio) {
 function updateAudioDuration(audioId, audio) {
     const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
     if (!controlsContainer) return;
-    
+
     const durationSpan = controlsContainer.querySelector('.duration');
     if (durationSpan && audio.duration && !isNaN(audio.duration)) {
         durationSpan.textContent = formatTime(audio.duration);
@@ -3840,10 +3950,10 @@ function updateAudioDuration(audioId, audio) {
 // 格式化时间显示
 function formatTime(seconds) {
     if (isNaN(seconds) || seconds < 0) return '0:00';
-    
+
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
-    
+
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
@@ -3862,15 +3972,15 @@ function initVolumeControls() {
 function toggleVolumeControl(audioId) {
     const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
     if (!controlsContainer) return;
-    
+
     let volumeControl = controlsContainer.querySelector('.volume-control');
-    
+
     if (!volumeControl) {
         // 创建音量控制
         volumeControl = createVolumeControl(audioId);
         controlsContainer.appendChild(volumeControl);
     }
-    
+
     // 切换显示状态
     volumeControl.style.display = volumeControl.style.display === 'none' ? 'flex' : 'none';
 }
@@ -3886,12 +3996,12 @@ function createVolumeControl(audioId) {
             <span class="volume-value">100%</span>
         </div>
     `;
-    
+
     // 绑定事件
     const slider = volumeControl.querySelector('.volume-slider');
     const muteBtn = volumeControl.querySelector('.mute-btn');
     const volumeValue = volumeControl.querySelector('.volume-value');
-    
+
     const player = AudioPlayerManager.getPlayer(audioId);
     if (player && player.audio) {
         // 音量滑块事件
@@ -3899,7 +4009,7 @@ function createVolumeControl(audioId) {
             const volume = e.target.value / 100;
             player.audio.volume = volume;
             volumeValue.textContent = `${e.target.value}%`;
-            
+
             // 更新静音按钮图标
             if (volume === 0) {
                 muteBtn.textContent = '🔇';
@@ -3909,7 +4019,7 @@ function createVolumeControl(audioId) {
                 muteBtn.textContent = '🔊';
             }
         });
-        
+
         // 静音按钮事件
         muteBtn.addEventListener('click', () => {
             player.audio.muted = !player.audio.muted;
@@ -3917,7 +4027,7 @@ function createVolumeControl(audioId) {
             slider.style.opacity = player.audio.muted ? '0.5' : '1';
         });
     }
-    
+
     return volumeControl;
 }
 
@@ -3925,14 +4035,14 @@ function createVolumeControl(audioId) {
 function createKeyboardShortcutHelp() {
     // 检查是否已存在
     if (document.querySelector('.keyboard-help')) return;
-    
+
     const helpButton = document.createElement('button');
     helpButton.className = 'keyboard-help-btn';
     helpButton.innerHTML = '⌨️';
     helpButton.title = '键盘快捷键帮助';
-    
+
     helpButton.addEventListener('click', showKeyboardShortcutHelp);
-    
+
     // 添加到页面右下角
     document.body.appendChild(helpButton);
 }
@@ -3945,7 +4055,7 @@ function showKeyboardShortcutHelp() {
         existingHelp.remove();
         return;
     }
-    
+
     const helpModal = document.createElement('div');
     helpModal.className = 'keyboard-help-modal';
     helpModal.innerHTML = `
@@ -3990,19 +4100,19 @@ function showKeyboardShortcutHelp() {
             </div>
         </div>
     `;
-    
+
     // 添加关闭事件
     helpModal.querySelector('.help-close-btn').addEventListener('click', () => {
         helpModal.remove();
     });
-    
+
     // 点击背景关闭
     helpModal.addEventListener('click', (e) => {
         if (e.target === helpModal) {
             helpModal.remove();
         }
     });
-    
+
     document.body.appendChild(helpModal);
 }
 
@@ -4015,7 +4125,7 @@ const VisualFeedback = {
             element.classList.remove('clicked');
         }, 200);
     },
-    
+
     // 添加选择反馈
     addSelectionFeedback(element) {
         element.classList.add('selecting');
@@ -4023,7 +4133,7 @@ const VisualFeedback = {
             element.classList.remove('selecting');
         }, 400);
     },
-    
+
     // 添加状态变化反馈
     addStatusChangeFeedback(element) {
         element.classList.add('audio-status-change');
@@ -4031,7 +4141,7 @@ const VisualFeedback = {
             element.classList.remove('audio-status-change');
         }, 500);
     },
-    
+
     // 添加增强反馈
     addEnhancedFeedback(element) {
         element.classList.add('enhanced-feedback');
@@ -4044,11 +4154,11 @@ const VisualFeedback = {
 // 性能指示器
 const PerformanceIndicator = {
     element: null,
-    
+
     // 创建性能指示器
     create() {
         if (this.element) return;
-        
+
         this.element = document.createElement('div');
         this.element.className = 'performance-indicator';
         this.element.innerHTML = `
@@ -4059,39 +4169,39 @@ const PerformanceIndicator = {
                 <div>平均内容切换: <span id="perf-content">-</span>ms</div>
             </div>
         `;
-        
+
         document.body.appendChild(this.element);
     },
-    
+
     // 显示性能指示器
     show() {
         if (!this.element) this.create();
         this.element.classList.add('show');
         this.update();
     },
-    
+
     // 隐藏性能指示器
     hide() {
         if (this.element) {
             this.element.classList.remove('show');
         }
     },
-    
+
     // 更新性能数据
     update() {
         if (!this.element) return;
-        
+
         const report = PerformanceMonitor.getPerformanceReport();
-        
+
         const initSpan = this.element.querySelector('#perf-init');
         const audioSpan = this.element.querySelector('#perf-audio');
         const contentSpan = this.element.querySelector('#perf-content');
-        
+
         if (initSpan) initSpan.textContent = report.appInitTime.toFixed(0);
         if (audioSpan) audioSpan.textContent = report.avgAudioLoadTime;
         if (contentSpan) contentSpan.textContent = report.avgContentSwitchTime;
     },
-    
+
     // 切换显示状态
     toggle() {
         if (this.element && this.element.classList.contains('show')) {
@@ -4119,7 +4229,7 @@ function initUserExperienceEnhancements() {
             VisualFeedback.addClickFeedback(event.target);
         }
     });
-    
+
     // 为音频控件添加增强反馈
     document.addEventListener('audioStateChange', (event) => {
         const { audioId } = event.detail;
@@ -4128,11 +4238,11 @@ function initUserExperienceEnhancements() {
             VisualFeedback.addEnhancedFeedback(controlsContainer);
         }
     });
-    
+
     // 添加触摸设备优化
     if ('ontouchstart' in window) {
         document.body.classList.add('touch-device');
-        
+
         // 为触摸设备优化按钮大小
         const style = document.createElement('style');
         style.textContent = `
@@ -4158,31 +4268,31 @@ function initUserExperienceEnhancements() {
         `;
         document.head.appendChild(style);
     }
-    
+
     // 添加焦点管理
     document.addEventListener('keydown', (event) => {
         if (event.code === 'Tab') {
             document.body.classList.add('keyboard-navigation');
         }
     });
-    
+
     document.addEventListener('mousedown', () => {
         document.body.classList.remove('keyboard-navigation');
     });
-    
+
     console.log('用户体验增强功能已初始化');
 }
 
 // 动态生成音频文件路径
 function generateAudioFilePath(courseId, part, paragraphNum = null) {
     const basePath = 'Sound';
-    
+
     if (part === 'A') {
         return `${basePath}/${courseId}/a.opus`;
     } else if (part === 'B' && paragraphNum) {
         return `${basePath}/${courseId}/b_${paragraphNum}.opus`;
     }
-    
+
     console.warn(`无法生成音频文件路径: courseId=${courseId}, part=${part}, paragraphNum=${paragraphNum}`);
     return null;
 }
@@ -4192,16 +4302,16 @@ function validateAudioFilePath(audioFile) {
     if (!audioFile || typeof audioFile !== 'string') {
         return false;
     }
-    
+
     // 检查文件扩展名
     const validExtensions = ['.opus', '.mp3', '.wav', '.ogg'];
     const hasValidExtension = validExtensions.some(ext => audioFile.toLowerCase().endsWith(ext));
-    
+
     if (!hasValidExtension) {
         console.warn(`音频文件扩展名无效: ${audioFile}`);
         return false;
     }
-    
+
     // 验证路径格式 - 支持新的数据结构路径
     const validPathPatterns = [
         /^Sound\/Class\d+\/[ab]_\d+\.(opus|mp3|wav|ogg)$/i,  // 新格式: Sound/Class01/a_1.opus
@@ -4209,14 +4319,14 @@ function validateAudioFilePath(audioFile) {
         /^https?:\/\/.+\.(opus|mp3|wav|ogg)$/i,  // HTTP URL
         /^\/.*\.(opus|mp3|wav|ogg)$/i  // 绝对路径
     ];
-    
+
     const isValidPath = validPathPatterns.some(pattern => pattern.test(audioFile));
-    
+
     if (!isValidPath) {
         console.warn(`音频文件路径格式无效: ${audioFile}`);
         return false;
     }
-    
+
     return true;
 }
 
@@ -4224,7 +4334,7 @@ function validateAudioFilePath(audioFile) {
 function cleanupAudioControls(audioId) {
     // 销毁对应的播放器实例
     AudioPlayerManager.destroyPlayer(audioId);
-    
+
     // 清理UI状态
     const controlsContainer = document.querySelector(`[data-audio-id="${audioId}"]`);
     if (controlsContainer) {
@@ -4241,11 +4351,11 @@ function cleanupAudioControls(audioId) {
 function clearContentDisplay() {
     const contentContainer = document.getElementById('content-container');
     const breadcrumb = document.getElementById('content-breadcrumb');
-    
+
     if (breadcrumb) {
         breadcrumb.innerHTML = '<span>请选择一个课程和部分开始学习</span>';
     }
-    
+
     if (contentContainer) {
         contentContainer.innerHTML = `
             <div class="welcome-state">
@@ -4269,7 +4379,7 @@ function clearContentDisplay() {
             </div>
         `;
     }
-    
+
     // 清除应用状态
     AppState.currentCourse = null;
     AppState.currentPart = null;
@@ -4280,11 +4390,11 @@ function clearContentDisplay() {
 // 初始化Header导航功能
 function initHeaderNavigation() {
     const navLinks = document.querySelectorAll('.nav-link');
-    
+
     navLinks.forEach(link => {
         link.addEventListener('click', handleNavClick);
     });
-    
+
     // 添加滚动监听，高亮当前区域
     window.addEventListener('scroll', updateActiveNavLink);
 }
@@ -4292,20 +4402,20 @@ function initHeaderNavigation() {
 // 处理导航链接点击
 function handleNavClick(event) {
     event.preventDefault();
-    
+
     const targetId = event.target.getAttribute('href').substring(1);
     const targetElement = document.getElementById(targetId);
-    
+
     if (targetElement) {
         // 平滑滚动到目标元素
         targetElement.scrollIntoView({
             behavior: 'smooth',
             block: 'start'
         });
-        
+
         // 更新活跃状态
         updateActiveNavLink();
-        
+
         // 添加焦点管理（无障碍访问）
         setTimeout(() => {
             targetElement.focus();
@@ -4317,16 +4427,16 @@ function handleNavClick(event) {
 function updateActiveNavLink() {
     const navLinks = document.querySelectorAll('.nav-link');
     const sections = document.querySelectorAll('section[id]');
-    
+
     let currentSection = '';
-    
+
     sections.forEach(section => {
         const rect = section.getBoundingClientRect();
         if (rect.top <= 100 && rect.bottom >= 100) {
             currentSection = section.id;
         }
     });
-    
+
     navLinks.forEach(link => {
         const href = link.getAttribute('href').substring(1);
         if (href === currentSection) {
