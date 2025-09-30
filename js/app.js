@@ -366,6 +366,12 @@ function initContentSwitchListeners() {
     addStateListener('stateChange', (data) => {
         console.log('状态变更:', data);
 
+        // 如果有课程和部分选择，更新内容显示
+        if (data.courseId && data.part) {
+            renderContentDisplay(data.courseId, data.part);
+            console.log(`内容显示已更新: ${data.courseId} - Part ${data.part}`);
+        }
+
         // 可以在这里添加额外的状态变更处理逻辑
         // 例如：保存用户偏好、更新统计信息等
     });
@@ -1651,6 +1657,1187 @@ function getCourseStatistics() {
 
 // ===== CourseList组件功能 =====
 
+// ===== 课程下拉选择器组件 =====
+
+/**
+ * CourseDropdown 组件类
+ */
+class CourseDropdown {
+    constructor(container, options = {}) {
+        this.container = container;
+        this.options = {
+            placeholder: '选择课程',
+            disabled: false,
+            onCourseSelect: null,
+            ...options
+        };
+        
+        this.state = {
+            isOpen: false,
+            selectedCourse: null,
+            focusedIndex: -1,
+            courses: []
+        };
+        
+        this.elements = {};
+        this.init();
+    }
+    
+    /**
+     * 初始化组件
+     */
+    init() {
+        this.render();
+        this.bindEvents();
+        console.log('CourseDropdown 组件已初始化');
+    }
+    
+    /**
+     * 渲染组件HTML结构
+     */
+    render() {
+        this.container.innerHTML = `
+            <div class="course-dropdown" role="combobox" aria-expanded="false" aria-haspopup="listbox">
+                <button class="course-dropdown__trigger" 
+                        type="button" 
+                        aria-label="${this.options.placeholder}"
+                        ${this.options.disabled ? 'disabled' : ''}>
+                    <span class="dropdown-trigger__text">${this.options.placeholder}</span>
+                    <span class="dropdown-trigger__icon">▼</span>
+                </button>
+                <ul class="course-dropdown__menu" 
+                    role="listbox" 
+                    aria-label="课程列表"
+                    style="display: none;">
+                    <!-- 课程选项将动态生成 -->
+                </ul>
+            </div>
+        `;
+        
+        // 缓存DOM元素
+        this.elements = {
+            dropdown: this.container.querySelector('.course-dropdown'),
+            trigger: this.container.querySelector('.course-dropdown__trigger'),
+            triggerText: this.container.querySelector('.dropdown-trigger__text'),
+            triggerIcon: this.container.querySelector('.dropdown-trigger__icon'),
+            menu: this.container.querySelector('.course-dropdown__menu')
+        };
+    }
+    
+    /**
+     * 绑定事件监听器
+     */
+    bindEvents() {
+        // 点击触发按钮开关下拉菜单
+        this.elements.trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleDropdown();
+        });
+        
+        // 触发按钮悬停效果
+        this.elements.trigger.addEventListener('mouseenter', (e) => {
+            if (!this.options.disabled) {
+                this.elements.trigger.classList.add('course-dropdown__trigger--hover');
+            }
+        });
+        
+        this.elements.trigger.addEventListener('mouseleave', (e) => {
+            this.elements.trigger.classList.remove('course-dropdown__trigger--hover');
+        });
+        
+        // 键盘导航
+        this.elements.trigger.addEventListener('keydown', (e) => {
+            this.handleKeyNavigation(e);
+        });
+        
+        // 点击外部关闭下拉菜单
+        this.handleDocumentClick = (e) => {
+            // 检查点击是否在组件外部
+            if (!this.container.contains(e.target) && this.state.isOpen) {
+                this.closeDropdown();
+                console.log('点击外部区域，关闭下拉菜单');
+            }
+        };
+        document.addEventListener('click', this.handleDocumentClick);
+        
+        // 处理焦点丢失事件
+        this.handleFocusOut = (e) => {
+            // 使用setTimeout确保新的焦点元素已经设置
+            setTimeout(() => {
+                const activeElement = document.activeElement;
+                
+                // 如果焦点移动到组件外部，关闭下拉菜单
+                if (this.state.isOpen && 
+                    !this.container.contains(activeElement) && 
+                    activeElement !== document.body) {
+                    this.closeDropdown();
+                    console.log('焦点移出组件，关闭下拉菜单');
+                }
+            }, 0);
+        };
+        
+        // 监听触发按钮和菜单的焦点事件
+        this.elements.trigger.addEventListener('blur', this.handleFocusOut);
+        this.elements.menu.addEventListener('blur', this.handleFocusOut);
+        
+        // 处理Escape键的全局监听
+        this.handleDocumentKeydown = (e) => {
+            if (e.key === 'Escape' && this.state.isOpen) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.closeDropdown();
+                this.elements.trigger.focus();
+                console.log('按下Escape键，关闭下拉菜单');
+            }
+        };
+        document.addEventListener('keydown', this.handleDocumentKeydown);
+        
+        // 菜单项点击事件（事件委托）
+        this.elements.menu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const option = e.target.closest('.course-dropdown__option');
+            if (option && !option.classList.contains('course-dropdown__empty')) {
+                const courseId = option.dataset.courseId;
+                this.selectCourse(courseId);
+            }
+        });
+        
+        // 菜单键盘导航支持
+        this.elements.menu.addEventListener('keydown', (e) => {
+            this.handleKeyNavigation(e);
+        });
+        
+        // 菜单项悬停效果（事件委托）
+        this.elements.menu.addEventListener('mouseenter', (e) => {
+            const option = e.target.closest('.course-dropdown__option');
+            if (option && !option.classList.contains('course-dropdown__empty')) {
+                // 清除键盘导航的焦点状态
+                this.clearFocusedOption();
+                // 添加悬停状态
+                option.classList.add('course-dropdown__option--hover');
+                // 更新焦点索引以保持键盘导航的一致性
+                const options = Array.from(this.elements.menu.children);
+                this.state.focusedIndex = options.indexOf(option);
+            }
+        }, true);
+        
+        this.elements.menu.addEventListener('mouseleave', (e) => {
+            const option = e.target.closest('.course-dropdown__option');
+            if (option) {
+                option.classList.remove('course-dropdown__option--hover');
+            }
+        }, true);
+        
+        // 防止菜单内部点击冒泡关闭下拉菜单
+        this.elements.menu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+    
+    /**
+     * 切换下拉菜单开关状态
+     */
+    toggleDropdown() {
+        if (this.options.disabled) return;
+        
+        if (this.state.isOpen) {
+            this.closeDropdown();
+        } else {
+            this.openDropdown();
+        }
+    }
+    
+    /**
+     * 打开下拉菜单
+     */
+    openDropdown() {
+        if (this.options.disabled) return;
+        
+        this.state.isOpen = true;
+        this.state.focusedIndex = -1;
+        
+        // 更新UI状态
+        this.elements.dropdown.setAttribute('aria-expanded', 'true');
+        this.elements.menu.style.display = 'block';
+        this.elements.triggerIcon.style.transform = 'rotate(180deg)';
+        this.elements.dropdown.classList.add('course-dropdown--open');
+        
+        // 渲染课程选项
+        this.renderCourseOptions();
+        
+        // 设置ARIA属性以支持屏幕阅读器
+        this.elements.menu.setAttribute('aria-activedescendant', '');
+        
+        // 确保触发按钮保持焦点
+        this.elements.trigger.focus();
+        
+        console.log('下拉菜单已打开');
+    }
+    
+    /**
+     * 关闭下拉菜单
+     */
+    closeDropdown() {
+        if (!this.state.isOpen) return;
+        
+        this.state.isOpen = false;
+        this.state.focusedIndex = -1;
+        
+        // 更新UI状态
+        this.elements.dropdown.setAttribute('aria-expanded', 'false');
+        this.elements.menu.style.display = 'none';
+        this.elements.triggerIcon.style.transform = 'rotate(0deg)';
+        this.elements.dropdown.classList.remove('course-dropdown--open');
+        
+        // 清除ARIA属性
+        this.elements.menu.setAttribute('aria-activedescendant', '');
+        
+        // 清除所有选项的聚焦状态
+        this.clearFocusedOption();
+        
+        console.log('下拉菜单已关闭');
+    }
+    
+    /**
+     * 渲染课程选项
+     */
+    renderCourseOptions() {
+        if (!this.state.courses || this.state.courses.length === 0) {
+            this.elements.menu.innerHTML = `
+                <li class="course-dropdown__empty" role="option">
+                    <span class="empty-message">暂无课程数据</span>
+                </li>
+            `;
+            return;
+        }
+        
+        const optionsHTML = this.state.courses.map((course, index) => {
+            const courseOption = new CourseOption(course, {
+                isSelected: this.state.selectedCourse === course.id,
+                index: index
+            });
+            return courseOption.render();
+        }).join('');
+        
+        this.elements.menu.innerHTML = optionsHTML;
+        
+        // 初始化工具提示
+        this.initTooltips();
+    }
+    
+    /**
+     * 初始化工具提示
+     */
+    initTooltips() {
+        const statusIndicators = this.elements.menu.querySelectorAll('.status-indicator');
+        statusIndicators.forEach(indicator => {
+            const tooltip = indicator.querySelector('.tooltip-content');
+            if (tooltip) {
+                // 添加悬停事件
+                indicator.addEventListener('mouseenter', () => {
+                    tooltip.style.visibility = 'visible';
+                    tooltip.style.opacity = '1';
+                });
+                
+                indicator.addEventListener('mouseleave', () => {
+                    tooltip.style.visibility = 'hidden';
+                    tooltip.style.opacity = '0';
+                });
+            }
+        });
+    }
+    
+    /**
+     * 处理键盘导航
+     */
+    handleKeyNavigation(e) {
+        // 如果组件被禁用，忽略键盘事件
+        if (this.options.disabled) {
+            return;
+        }
+        
+        switch (e.key) {
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                e.stopPropagation();
+                if (!this.state.isOpen) {
+                    this.openDropdown();
+                } else if (this.state.focusedIndex >= 0) {
+                    const focusedOption = this.elements.menu.children[this.state.focusedIndex];
+                    if (focusedOption && !focusedOption.classList.contains('course-dropdown__empty')) {
+                        const courseId = focusedOption.dataset.courseId;
+                        this.selectCourse(courseId);
+                    }
+                } else {
+                    // 如果没有聚焦的选项，关闭下拉菜单
+                    this.closeDropdown();
+                }
+                break;
+                
+            case 'Escape':
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.state.isOpen) {
+                    this.closeDropdown();
+                    this.elements.trigger.focus();
+                }
+                break;
+                
+            case 'ArrowDown':
+                e.preventDefault();
+                e.stopPropagation();
+                if (!this.state.isOpen) {
+                    this.openDropdown();
+                    // 打开后聚焦第一个选项
+                    setTimeout(() => {
+                        this.focusFirstOption();
+                    }, 50);
+                } else {
+                    this.focusNextOption();
+                }
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.state.isOpen) {
+                    this.focusPreviousOption();
+                } else {
+                    // 如果下拉菜单关闭，向上箭头打开菜单并聚焦最后一个选项
+                    this.openDropdown();
+                    setTimeout(() => {
+                        this.focusLastOption();
+                    }, 50);
+                }
+                break;
+                
+            case 'Home':
+                if (this.state.isOpen) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.focusFirstOption();
+                }
+                break;
+                
+            case 'End':
+                if (this.state.isOpen) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.focusLastOption();
+                }
+                break;
+                
+            case 'Tab':
+                // Tab键关闭下拉菜单但不阻止默认行为
+                if (this.state.isOpen) {
+                    this.closeDropdown();
+                }
+                break;
+        }
+    }
+    
+    /**
+     * 聚焦下一个选项
+     */
+    focusNextOption() {
+        const options = Array.from(this.elements.menu.children);
+        const validOptions = options.filter(option => !option.classList.contains('course-dropdown__empty'));
+        
+        if (validOptions.length === 0) return;
+        
+        // 如果当前没有聚焦选项，聚焦第一个
+        if (this.state.focusedIndex < 0) {
+            this.state.focusedIndex = 0;
+        } else {
+            // 移动到下一个选项，循环到开头
+            this.state.focusedIndex = (this.state.focusedIndex + 1) % options.length;
+            
+            // 跳过空选项
+            while (this.state.focusedIndex < options.length && 
+                   options[this.state.focusedIndex].classList.contains('course-dropdown__empty')) {
+                this.state.focusedIndex = (this.state.focusedIndex + 1) % options.length;
+            }
+        }
+        
+        this.updateFocusedOption();
+    }
+    
+    /**
+     * 聚焦上一个选项
+     */
+    focusPreviousOption() {
+        const options = Array.from(this.elements.menu.children);
+        const validOptions = options.filter(option => !option.classList.contains('course-dropdown__empty'));
+        
+        if (validOptions.length === 0) return;
+        
+        // 如果当前没有聚焦选项，聚焦最后一个
+        if (this.state.focusedIndex < 0) {
+            this.state.focusedIndex = options.length - 1;
+        } else {
+            // 移动到上一个选项，循环到末尾
+            this.state.focusedIndex = this.state.focusedIndex - 1;
+            if (this.state.focusedIndex < 0) {
+                this.state.focusedIndex = options.length - 1;
+            }
+            
+            // 跳过空选项
+            while (this.state.focusedIndex >= 0 && 
+                   options[this.state.focusedIndex].classList.contains('course-dropdown__empty')) {
+                this.state.focusedIndex--;
+                if (this.state.focusedIndex < 0) {
+                    this.state.focusedIndex = options.length - 1;
+                }
+            }
+        }
+        
+        this.updateFocusedOption();
+    }
+    
+    /**
+     * 聚焦第一个选项
+     */
+    focusFirstOption() {
+        const options = Array.from(this.elements.menu.children);
+        
+        // 找到第一个非空选项
+        for (let i = 0; i < options.length; i++) {
+            if (!options[i].classList.contains('course-dropdown__empty')) {
+                this.state.focusedIndex = i;
+                this.updateFocusedOption();
+                return;
+            }
+        }
+        
+        this.state.focusedIndex = -1;
+    }
+    
+    /**
+     * 聚焦最后一个选项
+     */
+    focusLastOption() {
+        const options = Array.from(this.elements.menu.children);
+        
+        // 找到最后一个非空选项
+        for (let i = options.length - 1; i >= 0; i--) {
+            if (!options[i].classList.contains('course-dropdown__empty')) {
+                this.state.focusedIndex = i;
+                this.updateFocusedOption();
+                return;
+            }
+        }
+        
+        this.state.focusedIndex = -1;
+    }
+    
+    /**
+     * 更新聚焦选项的视觉状态
+     */
+    updateFocusedOption() {
+        const options = this.elements.menu.children;
+        
+        // 清除所有聚焦状态
+        this.clearFocusedOption();
+        
+        // 设置当前聚焦选项
+        if (this.state.focusedIndex >= 0 && this.state.focusedIndex < options.length) {
+            const focusedOption = options[this.state.focusedIndex];
+            focusedOption.classList.add('course-dropdown__option--focused');
+            
+            // 设置ARIA属性
+            const optionId = focusedOption.id || `course-option-${this.state.focusedIndex}`;
+            focusedOption.id = optionId;
+            this.elements.menu.setAttribute('aria-activedescendant', optionId);
+            
+            // 滚动到可见区域
+            focusedOption.scrollIntoView({ 
+                block: 'nearest',
+                behavior: 'smooth'
+            });
+            
+            console.log(`键盘导航: 聚焦选项 ${this.state.focusedIndex}`);
+        } else {
+            // 清除ARIA属性
+            this.elements.menu.setAttribute('aria-activedescendant', '');
+        }
+    }
+    
+    /**
+     * 清除所有选项的聚焦状态
+     */
+    clearFocusedOption() {
+        const options = this.elements.menu.children;
+        Array.from(options).forEach(option => {
+            option.classList.remove('course-dropdown__option--focused');
+            option.classList.remove('course-dropdown__option--hover');
+        });
+    }
+    
+    /**
+     * 选择课程
+     */
+    selectCourse(courseId) {
+        const course = this.state.courses.find(c => c.id === courseId);
+        if (!course) {
+            console.warn(`找不到课程: ${courseId}`);
+            return;
+        }
+        
+        // 更新状态
+        this.state.selectedCourse = courseId;
+        
+        // 更新触发按钮文本
+        this.elements.triggerText.textContent = course.name || course.id;
+        
+        // 关闭下拉菜单
+        this.closeDropdown();
+        
+        // 触发选择事件
+        if (this.options.onCourseSelect) {
+            this.options.onCourseSelect(courseId, course);
+        }
+        
+        console.log(`已选择课程: ${courseId}`);
+    }
+    
+    /**
+     * 设置课程数据
+     */
+    setCourses(courses) {
+        this.state.courses = courses || [];
+        
+        // 如果下拉菜单是打开的，重新渲染选项
+        if (this.state.isOpen) {
+            this.renderCourseOptions();
+        }
+        
+        console.log(`CourseDropdown: 已设置 ${this.state.courses.length} 个课程`);
+    }
+    
+    /**
+     * 获取当前选择的课程
+     */
+    getSelectedCourse() {
+        return this.state.selectedCourse;
+    }
+    
+    /**
+     * 设置选择的课程
+     */
+    setSelectedCourse(courseId) {
+        if (courseId) {
+            this.selectCourse(courseId);
+        } else {
+            this.state.selectedCourse = null;
+            this.elements.triggerText.textContent = this.options.placeholder;
+        }
+    }
+    
+    /**
+     * 启用/禁用组件
+     */
+    setDisabled(disabled) {
+        this.options.disabled = disabled;
+        this.elements.trigger.disabled = disabled;
+        
+        if (disabled && this.state.isOpen) {
+            this.closeDropdown();
+        }
+    }
+    
+    /**
+     * 销毁组件
+     */
+    destroy() {
+        // 移除事件监听器
+        if (this.handleDocumentClick) {
+            document.removeEventListener('click', this.handleDocumentClick);
+        }
+        
+        if (this.handleDocumentKeydown) {
+            document.removeEventListener('keydown', this.handleDocumentKeydown);
+        }
+        
+        if (this.handleFocusOut) {
+            this.elements.trigger?.removeEventListener('blur', this.handleFocusOut);
+            this.elements.menu?.removeEventListener('blur', this.handleFocusOut);
+        }
+        
+        // 关闭下拉菜单
+        this.closeDropdown();
+        
+        // 清空容器
+        this.container.innerHTML = '';
+        
+        console.log('CourseDropdown 组件已销毁');
+    }
+}
+
+/**
+ * CourseOption 组件类 - 渲染单个课程选项
+ */
+class CourseOption {
+    constructor(course, options = {}) {
+        this.course = course;
+        this.options = {
+            isSelected: false,
+            index: 0,
+            ...options
+        };
+    }
+    
+    /**
+     * 渲染课程选项HTML
+     */
+    render() {
+        const status = this.calculateCourseStatus();
+        const statusIndicator = new StatusIndicator(status);
+        
+        return `
+            <li class="course-dropdown__option ${this.options.isSelected ? 'course-dropdown__option--selected' : ''}" 
+                role="option" 
+                data-course-id="${this.course.id}"
+                data-index="${this.options.index}"
+                aria-selected="${this.options.isSelected ? 'true' : 'false'}">
+                <div class="course-option__content">
+                    <div class="course-option__title">${this.course.name || this.course.id}</div>
+                    <div class="course-option__id">${this.course.id}</div>
+                </div>
+                <div class="course-option__status">
+                    ${statusIndicator.render()}
+                </div>
+            </li>
+        `;
+    }
+    
+    /**
+     * 计算课程状态
+     */
+    calculateCourseStatus() {
+        const hasPartA = this.course.partA && Array.isArray(this.course.partA) && this.course.partA.length > 0;
+        const hasPartB = this.course.partB && Array.isArray(this.course.partB) && this.course.partB.length > 0;
+        
+        // 检查音频文件可用性
+        let partAComplete = false;
+        let partBComplete = false;
+        
+        if (hasPartA) {
+            partAComplete = this.course.partA.every(item => item.audioFile);
+        }
+        
+        if (hasPartB) {
+            partBComplete = this.course.partB.every(item => item.audioFile);
+        }
+        
+        // 确定整体状态
+        if (hasPartA && hasPartB && partAComplete && partBComplete) {
+            return {
+                type: 'complete',
+                label: '完整内容',
+                description: '该课程包含完整的A部分和B部分内容，所有音频文件可用'
+            };
+        } else if ((hasPartA && partAComplete) || (hasPartB && partBComplete)) {
+            return {
+                type: 'partial',
+                label: '部分内容',
+                description: hasPartA && hasPartB 
+                    ? '该课程包含A部分和B部分，但部分音频文件缺失'
+                    : '该课程只包含部分内容'
+            };
+        } else {
+            return {
+                type: 'missing',
+                label: '内容缺失',
+                description: '该课程缺少内容或音频文件不可用'
+            };
+        }
+    }
+}
+
+/**
+ * StatusIndicator 组件类 - 显示课程状态指示器
+ */
+class StatusIndicator {
+    constructor(status) {
+        this.status = status;
+    }
+    
+    /**
+     * 渲染状态指示器HTML
+     */
+    render() {
+        const { type, label, description } = this.status;
+        
+        return `
+            <div class="status-indicator status-indicator--${type}" 
+                 role="img" 
+                 aria-label="${label}">
+                <div class="status-dot"></div>
+                <div class="tooltip-content" role="tooltip">
+                    <div class="tooltip-title">${label}</div>
+                    <div class="tooltip-description">${description}</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 获取状态图标
+     */
+    getStatusIcon(type) {
+        const icons = {
+            complete: '●',
+            partial: '●',
+            missing: '●'
+        };
+        return icons[type] || '●';
+    }
+    
+    /**
+     * 获取状态颜色类
+     */
+    getStatusClass(type) {
+        const classes = {
+            complete: 'status-complete',
+            partial: 'status-partial',
+            missing: 'status-missing'
+        };
+        return classes[type] || 'status-unknown';
+    }
+}
+
+/**
+ * CourseSelector 组件类 - 整合课程下拉选择器和部分选择器
+ */
+class CourseSelector {
+    constructor(container) {
+        this.container = container;
+        this.courseDropdown = null;
+        this.partSelector = null;
+        this.elements = {};
+        
+        this.init();
+    }
+    
+    /**
+     * 初始化组件
+     */
+    init() {
+        this.render();
+        this.initializeComponents();
+        this.bindStateEvents();
+        console.log('CourseSelector 组件已初始化');
+    }
+    
+    /**
+     * 渲染组件结构
+     */
+    render() {
+        this.container.innerHTML = `
+            <div class="course-selector-container">
+                <div class="course-selector-header">
+                    <h2>课程选择</h2>
+                    <p class="section-subtitle">选择课程和部分开始学习</p>
+                </div>
+                <div class="course-selector-content">
+                    <div class="course-dropdown-container">
+                        <!-- CourseDropdown 将在这里初始化 -->
+                    </div>
+                    <div class="part-selector-container">
+                        <!-- PartSelector 将在这里初始化 -->
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 缓存DOM元素
+        this.elements = {
+            dropdownContainer: this.container.querySelector('.course-dropdown-container'),
+            partContainer: this.container.querySelector('.part-selector-container')
+        };
+    }
+    
+    /**
+     * 初始化子组件
+     */
+    initializeComponents() {
+        // 初始化课程下拉选择器
+        this.courseDropdown = new CourseDropdown(this.elements.dropdownContainer, {
+            placeholder: '选择课程',
+            onCourseSelect: (courseId, course) => {
+                this.handleCourseSelection(courseId, course);
+            }
+        });
+        
+        // 初始化部分选择器
+        this.partSelector = new PartSelector(this.elements.partContainer, {
+            disabled: true,
+            onPartSelect: (part) => {
+                this.handlePartSelection(part);
+            }
+        });
+        
+        // 设置初始课程数据
+        this.updateCourseData();
+    }
+    
+    /**
+     * 绑定状态事件
+     */
+    bindStateEvents() {
+        // 监听应用状态变更
+        addStateListener('stateChange', (data) => {
+            this.handleStateChange(data);
+        });
+        
+        // 监听课程数据更新
+        addStateListener('courseDataUpdate', (data) => {
+            this.updateCourseData();
+        });
+    }
+    
+    /**
+     * 处理课程选择
+     */
+    handleCourseSelection(courseId, course) {
+        console.log(`CourseSelector: 课程选择 ${courseId}`);
+        
+        // 启用部分选择器
+        this.partSelector.setDisabled(false);
+        this.partSelector.setCourse(course);
+        
+        // 如果之前有选择的部分，保持选择状态
+        const currentSelection = getCurrentSelection();
+        if (currentSelection.courseId === courseId && currentSelection.part) {
+            this.partSelector.setSelectedPart(currentSelection.part);
+        } else {
+            // 默认选择Part A（如果可用）
+            if (course.partA && course.partA.length > 0) {
+                this.partSelector.setSelectedPart('A');
+                this.handlePartSelection('A');
+            } else if (course.partB && course.partB.length > 0) {
+                this.partSelector.setSelectedPart('B');
+                this.handlePartSelection('B');
+            }
+        }
+    }
+    
+    /**
+     * 处理部分选择
+     */
+    handlePartSelection(part) {
+        const selectedCourse = this.courseDropdown.getSelectedCourse();
+        if (!selectedCourse) {
+            console.warn('CourseSelector: 没有选择课程');
+            return;
+        }
+        
+        console.log(`CourseSelector: 部分选择 ${selectedCourse} - Part ${part}`);
+        
+        // 更新应用状态
+        setCurrentSelection(selectedCourse, part);
+    }
+    
+    /**
+     * 处理状态变更
+     */
+    handleStateChange(data) {
+        const { courseId, part } = data;
+        
+        // 同步下拉选择器状态
+        if (courseId !== this.courseDropdown.getSelectedCourse()) {
+            this.courseDropdown.setSelectedCourse(courseId);
+        }
+        
+        // 同步部分选择器状态
+        if (courseId) {
+            const course = AppState.courses.find(c => c.id === courseId);
+            if (course) {
+                this.partSelector.setDisabled(false);
+                this.partSelector.setCourse(course);
+                this.partSelector.setSelectedPart(part);
+            }
+        } else {
+            this.partSelector.setDisabled(true);
+            this.partSelector.setCourse(null);
+        }
+    }
+    
+    /**
+     * 更新课程数据
+     */
+    updateCourseData() {
+        if (this.courseDropdown) {
+            this.courseDropdown.setCourses(AppState.courses);
+        }
+        
+        console.log(`CourseSelector: 已更新课程数据，共 ${AppState.courses.length} 个课程`);
+    }
+    
+    /**
+     * 获取当前选择状态
+     */
+    getCurrentSelection() {
+        return {
+            courseId: this.courseDropdown.getSelectedCourse(),
+            part: this.partSelector.getSelectedPart()
+        };
+    }
+    
+    /**
+     * 设置选择状态
+     */
+    setSelection(courseId, part) {
+        if (courseId) {
+            this.courseDropdown.setSelectedCourse(courseId);
+            const course = AppState.courses.find(c => c.id === courseId);
+            if (course) {
+                this.partSelector.setDisabled(false);
+                this.partSelector.setCourse(course);
+                if (part) {
+                    this.partSelector.setSelectedPart(part);
+                }
+            }
+        } else {
+            this.courseDropdown.setSelectedCourse(null);
+            this.partSelector.setDisabled(true);
+            this.partSelector.setCourse(null);
+        }
+    }
+    
+    /**
+     * 销毁组件
+     */
+    destroy() {
+        if (this.courseDropdown) {
+            this.courseDropdown.destroy();
+        }
+        if (this.partSelector) {
+            this.partSelector.destroy();
+        }
+        
+        this.container.innerHTML = '';
+        console.log('CourseSelector 组件已销毁');
+    }
+}
+
+/**
+ * PartSelector 组件类 - 部分选择器
+ */
+class PartSelector {
+    constructor(container, options = {}) {
+        this.container = container;
+        this.options = {
+            disabled: true,
+            onPartSelect: null,
+            ...options
+        };
+        
+        this.state = {
+            course: null,
+            selectedPart: null,
+            disabled: this.options.disabled
+        };
+        
+        this.elements = {};
+        this.init();
+    }
+    
+    /**
+     * 初始化组件
+     */
+    init() {
+        this.render();
+        this.bindEvents();
+        console.log('PartSelector 组件已初始化');
+    }
+    
+    /**
+     * 渲染组件
+     */
+    render() {
+        this.container.innerHTML = `
+            <div class="part-selector ${this.state.disabled ? 'part-selector--disabled' : ''}">
+                <div class="part-selector-header">
+                    <h3>选择部分</h3>
+                </div>
+                <div class="part-buttons">
+                    <button class="part-btn part-btn--a" 
+                            data-part="A" 
+                            ${this.state.disabled ? 'disabled' : ''}>
+                        <span class="part-label">Part A</span>
+                        <span class="part-description">基础内容</span>
+                    </button>
+                    <button class="part-btn part-btn--b" 
+                            data-part="B" 
+                            ${this.state.disabled ? 'disabled' : ''}>
+                        <span class="part-label">Part B</span>
+                        <span class="part-description">对话练习</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // 缓存DOM元素
+        this.elements = {
+            container: this.container.querySelector('.part-selector'),
+            partA: this.container.querySelector('.part-btn--a'),
+            partB: this.container.querySelector('.part-btn--b'),
+            buttons: this.container.querySelectorAll('.part-btn')
+        };
+        
+        this.updateButtonStates();
+    }
+    
+    /**
+     * 绑定事件
+     */
+    bindEvents() {
+        this.elements.buttons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                if (this.state.disabled) return;
+                
+                const part = e.currentTarget.dataset.part;
+                this.selectPart(part);
+            });
+        });
+    }
+    
+    /**
+     * 选择部分
+     */
+    selectPart(part) {
+        if (this.state.disabled || !this.state.course) return;
+        
+        // 检查部分是否可用
+        if (!this.isPartAvailable(part)) {
+            console.warn(`PartSelector: Part ${part} 不可用`);
+            return;
+        }
+        
+        this.state.selectedPart = part;
+        this.updateButtonStates();
+        
+        // 触发选择事件
+        if (this.options.onPartSelect) {
+            this.options.onPartSelect(part);
+        }
+        
+        console.log(`PartSelector: 已选择 Part ${part}`);
+    }
+    
+    /**
+     * 检查部分是否可用
+     */
+    isPartAvailable(part) {
+        if (!this.state.course) return false;
+        
+        if (part === 'A') {
+            return this.state.course.partA && this.state.course.partA.length > 0;
+        } else if (part === 'B') {
+            return this.state.course.partB && this.state.course.partB.length > 0;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 更新按钮状态
+     */
+    updateButtonStates() {
+        // 清除所有选择状态
+        this.elements.buttons.forEach(button => {
+            button.classList.remove('part-btn--selected');
+        });
+        
+        // 设置选择状态
+        if (this.state.selectedPart) {
+            const selectedButton = this.container.querySelector(`[data-part="${this.state.selectedPart}"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('part-btn--selected');
+            }
+        }
+        
+        // 更新可用性状态
+        if (this.state.course) {
+            this.elements.partA.disabled = !this.isPartAvailable('A') || this.state.disabled;
+            this.elements.partB.disabled = !this.isPartAvailable('B') || this.state.disabled;
+            
+            // 添加不可用样式
+            if (!this.isPartAvailable('A')) {
+                this.elements.partA.classList.add('part-btn--unavailable');
+            } else {
+                this.elements.partA.classList.remove('part-btn--unavailable');
+            }
+            
+            if (!this.isPartAvailable('B')) {
+                this.elements.partB.classList.add('part-btn--unavailable');
+            } else {
+                this.elements.partB.classList.remove('part-btn--unavailable');
+            }
+        } else {
+            this.elements.buttons.forEach(button => {
+                button.disabled = true;
+                button.classList.add('part-btn--unavailable');
+            });
+        }
+    }
+    
+    /**
+     * 设置课程
+     */
+    setCourse(course) {
+        this.state.course = course;
+        this.updateButtonStates();
+        
+        console.log(`PartSelector: 已设置课程 ${course ? course.id : 'null'}`);
+    }
+    
+    /**
+     * 设置选择的部分
+     */
+    setSelectedPart(part) {
+        this.state.selectedPart = part;
+        this.updateButtonStates();
+    }
+    
+    /**
+     * 获取选择的部分
+     */
+    getSelectedPart() {
+        return this.state.selectedPart;
+    }
+    
+    /**
+     * 启用/禁用组件
+     */
+    setDisabled(disabled) {
+        this.state.disabled = disabled;
+        
+        if (disabled) {
+            this.elements.container.classList.add('part-selector--disabled');
+            this.state.selectedPart = null;
+        } else {
+            this.elements.container.classList.remove('part-selector--disabled');
+        }
+        
+        this.updateButtonStates();
+    }
+    
+    /**
+     * 销毁组件
+     */
+    destroy() {
+        this.container.innerHTML = '';
+        console.log('PartSelector 组件已销毁');
+    }
+}
+
+// 全局课程选择器实例
+let globalCourseSelector = null;
+
 // 渲染课程列表
 function renderCourseList() {
     const courseContainer = document.getElementById('course-container');
@@ -1667,14 +2854,21 @@ function renderCourseList() {
         return;
     }
 
-    // 渲染每个课程
-    AppState.courses.forEach(course => {
-        const courseElement = createCourseElement(course);
-        courseContainer.appendChild(courseElement);
-    });
+    // 销毁现有的课程选择器
+    if (globalCourseSelector) {
+        globalCourseSelector.destroy();
+    }
 
-    // 初始化课程交互
-    initCourseInteractions();
+    // 创建新的课程选择器
+    globalCourseSelector = new CourseSelector(courseContainer);
+
+    // 如果有当前选择状态，恢复它
+    const currentSelection = getCurrentSelection();
+    if (currentSelection.isValid) {
+        globalCourseSelector.setSelection(currentSelection.courseId, currentSelection.part);
+    }
+
+    console.log('课程选择器已渲染');
 }
 
 // 创建单个课程元素
