@@ -420,8 +420,7 @@ async function initApp() {
 
         console.log('最终课程数据:', AppState.courses);
 
-        // 显示调试信息
-        displayDebugInfo();
+
 
         // 检查数据完整性
         checkCourseDataIntegrity();
@@ -451,9 +450,6 @@ async function initApp() {
 
         // 记录性能指标
         recordPerformanceMetrics(loadTime);
-
-        // 测试音频路径解析（开发调试）
-        testAudioPathResolution();
 
         // 检测音频格式支持
         checkBrowserAudioSupport();
@@ -873,41 +869,7 @@ function showErrorIndicator(message) {
     }
 }
 
-// 测试音频路径解析（开发调试用）
-function testAudioPathResolution() {
-    const testPaths = [
-        'Sound/Class01/a_1.opus',
-        './Sound/Class01/a_1.opus',
-        'Class01/a_1.opus',
-        'Sound/Class02/b_2.opus'
-    ];
 
-    console.log('=== 音频路径解析测试 ===');
-    console.log(`当前页面路径: ${window.location.pathname}`);
-    console.log(`当前Hash: ${window.location.hash}`);
-    console.log(`当前完整URL: ${window.location.href}`);
-    console.log(`基础路径: ${getBasePath()}`);
-    console.log(`是否为GitHub Pages: ${window.location.origin.includes('github.io')}`);
-
-    // 分析hash路径
-    if (window.location.hash && window.location.hash.includes('/')) {
-        const hashPath = window.location.hash.substring(1);
-        const hashSegments = hashPath.split('/').filter(segment => segment.length > 0);
-        console.log(`Hash路径段数: ${hashSegments.length} (${hashSegments.join(', ')})`);
-        console.log(`实际使用的路径前缀: (无前缀)`);
-        console.log(`示例: 如果hash是 #Class01/A，则音频路径应该是 Sound/Class01/a_1.opus`);
-    }
-
-    testPaths.forEach(path => {
-        try {
-            const resolved = resolveAudioFilePath(path);
-            console.log(`${path} -> ${resolved}`);
-        } catch (error) {
-            console.error(`${path} -> ERROR: ${error.message}`);
-        }
-    });
-    console.log('=== 测试结束 ===');
-}
 
 // 检测浏览器音频格式支持
 function checkBrowserAudioSupport() {
@@ -947,64 +909,7 @@ function checkBrowserAudioSupport() {
     return formats;
 }
 
-// 暴露音频格式检测到全局
-window.checkAudioSupport = checkBrowserAudioSupport;
 
-// 手动测试音频播放（开发调试用）
-window.testAudioPlayback = function (audioPath) {
-    console.log(`手动测试音频播放: ${audioPath}`);
-
-    try {
-        const resolvedPath = resolveAudioFilePath(audioPath);
-        console.log(`解析后路径: ${resolvedPath}`);
-
-        const audio = new Audio();
-        audio.src = resolvedPath;
-
-        audio.oncanplaythrough = () => {
-            console.log(`音频可以播放: ${resolvedPath}`);
-            audio.play().then(() => {
-                console.log(`音频播放开始: ${resolvedPath}`);
-            }).catch(error => {
-                console.error(`音频播放失败: ${resolvedPath}`, error);
-            });
-        };
-
-        audio.onerror = (e) => {
-            console.error(`音频加载失败: ${resolvedPath}`, e);
-        };
-
-    } catch (error) {
-        console.error(`测试失败: ${audioPath}`, error);
-    }
-};
-
-// 测试当前页面所有音频控件（开发调试用）
-window.testAllAudioControls = function () {
-    console.log('=== 测试所有音频控件 ===');
-
-    const audioControls = document.querySelectorAll('.audio-controls[data-audio-id]');
-    console.log(`找到 ${audioControls.length} 个音频控件`);
-
-    audioControls.forEach((control, index) => {
-        const audioId = control.dataset.audioId;
-        const audioFile = control.dataset.audioFile;
-
-        console.log(`控件 ${index + 1}: ID=${audioId}, 文件=${audioFile}`);
-
-        if (AudioPlayerManager) {
-            const player = AudioPlayerManager.getPlayer(audioId);
-            if (player) {
-                console.log(`  播放器状态: ${player.currentState}`);
-                console.log(`  音频源: ${player.audio ? player.audio.src : '未设置'}`);
-            } else {
-                console.log(`  播放器未找到`);
-            }
-        }
-    });
-
-    console.log('=== 测试结束 ===');
-};
 
 // 记录性能指标
 function recordPerformanceMetrics(loadTime) {
@@ -1488,72 +1393,7 @@ function getCourseStatistics() {
     return stats;
 }
 
-// 显示调试信息
-function displayDebugInfo() {
-    const debugContainer = document.getElementById('debug-container');
-    if (!debugContainer) return;
 
-    const stats = getCourseStatistics();
-    const issues = checkCourseDataIntegrity();
-
-    let debugHTML = `
-        <h4>扫描结果统计</h4>
-        <ul>
-            <li>总课程数: ${stats.totalCourses}</li>
-            <li>有内容数据的课程: ${stats.coursesWithContent}</li>
-            <li>Part A 总数: ${stats.totalPartA}</li>
-            <li>Part B 总数: ${stats.totalPartB}</li>
-            <li>总段落数: ${stats.totalParagraphs}</li>
-        </ul>
-        
-        <h4>课程详情</h4>
-        <ul>
-    `;
-
-    AppState.courses.forEach(course => {
-        debugHTML += `
-            <li>
-                <strong>${course.name} (${course.id})</strong>
-                - 有内容: ${course.hasContent ? '是' : '否'}
-                <ul>
-        `;
-
-        if (course.partA && Array.isArray(course.partA)) {
-            debugHTML += `<li>Part A: ${course.partA.length}段`;
-            course.partA.forEach(p => {
-                debugHTML += ` [${p.paragraph}: 音频=${p.audioFile ? '是' : '否'}, 内容=${p.originalText && p.jyutping ? '是' : '否'}]`;
-            });
-            debugHTML += `</li>`;
-        }
-
-        if (course.partB && course.partB.length > 0) {
-            debugHTML += `<li>Part B: ${course.partB.length}段`;
-            course.partB.forEach(p => {
-                debugHTML += ` [${p.paragraph}: 音频=${p.hasAudio ? '是' : '否'}, 内容=${p.hasContent ? '是' : '否'}]`;
-            });
-            debugHTML += `</li>`;
-        }
-
-        debugHTML += `</ul></li>`;
-    });
-
-    debugHTML += '</ul>';
-
-    if (issues.length > 0) {
-        debugHTML += `
-            <h4>数据完整性问题</h4>
-            <ul style="color: orange;">
-        `;
-        issues.forEach(issue => {
-            debugHTML += `<li>${issue}</li>`;
-        });
-        debugHTML += '</ul>';
-    } else {
-        debugHTML += '<p style="color: green;">✓ 数据完整性检查通过</p>';
-    }
-
-    debugContainer.innerHTML = debugHTML;
-}
 
 // UI渲染功能已通过具体的组件渲染函数实现（renderCourseList, renderContentDisplay等）
 
@@ -2234,74 +2074,111 @@ function renderPartAContent(container, course, contentData) {
         return;
     }
 
-    let paragraphsHTML = '';
-    const audioInitTasks = []; // 存储音频初始化任务
+    // 清空容器
+    container.innerHTML = '';
 
+    // 创建Part A内容容器
+    const partAContainer = document.createElement('div');
+    partAContainer.className = 'part-a-content';
+
+    // 创建头部
+    const partHeader = document.createElement('div');
+    partHeader.className = 'part-header';
+    partHeader.innerHTML = `
+        <h3 class="part-title">${course.name} - Part A</h3>
+        <span class="part-type">${partAData.length}段内容</span>
+    `;
+    partAContainer.appendChild(partHeader);
+
+    // 创建段落列表容器
+    const paragraphList = document.createElement('div');
+    paragraphList.className = 'paragraph-list';
+
+    // 为每个段落创建内容
     partAData.forEach((paragraphData, index) => {
         const paragraphNum = paragraphData.paragraph || (index + 1);
-        const audioFile = paragraphData.audioFile;
+        const paragraphId = `part-a-${course.id}-${paragraphNum}`;
 
-        // 验证音频文件路径
-        const validAudioFile = audioFile && validateAudioFilePath(audioFile);
-
-        // 获取文本内容
-        const originalText = paragraphData.originalText || '暂无原文内容';
-        const jyutpingText = paragraphData.jyutping || '暂无粤拼标注';
-
-        const audioId = `part-a-${course.id}-${paragraphNum}`;
-
-        paragraphsHTML += `
-            <div class="paragraph-item">
-                <div class="paragraph-header">
-                    <div class="paragraph-number">${paragraphNum}</div>
-                </div>
-                
-                <div class="text-content">
-                    <div class="original-text">${originalText}</div>
-                    <div class="jyutping-text">${jyutpingText}</div>
-                </div>
-                
-                ${validAudioFile ? createAudioControls(audioFile, audioId) : createNoAudioMessage(`第${paragraphNum}段`)}
-            </div>
-        `;
-
-        // 记录需要初始化的音频控件
-        if (validAudioFile) {
-            audioInitTasks.push({
-                audioId: audioId,
-                audioFile: audioFile
-            });
-        }
+        // 创建段落元素
+        const paragraphElement = createParagraphWithAudio(paragraphData, paragraphId, paragraphNum);
+        paragraphList.appendChild(paragraphElement);
     });
 
-    container.innerHTML = `
-        <div class="part-a-content">
-            <div class="part-header">
-                <h3 class="part-title">${course.name} - Part A</h3>
-                <span class="part-type">${partAData.length}段内容</span>
-            </div>
-            
-            <div class="paragraph-list">
-                ${paragraphsHTML}
-            </div>
-        </div>
-    `;
+    partAContainer.appendChild(paragraphList);
+    container.appendChild(partAContainer);
 
     // 添加段落进入动画
     setTimeout(() => {
         addParagraphEnterAnimations(container);
         addAudioControlsEnterAnimations(container);
     }, 50);
+}
 
-    // 初始化所有音频控件
-    if (audioInitTasks.length > 0) {
-        // 使用setTimeout确保DOM元素已经渲染
-        setTimeout(() => {
-            audioInitTasks.forEach(task => {
-                initAudioControls(task.audioId, task.audioFile);
-            });
-        }, 100);
+/**
+ * 为段落创建包含原生音频控件的元素
+ * @param {Object} paragraphData - 段落数据
+ * @param {string} paragraphId - 段落ID
+ * @param {number} paragraphNum - 段落编号
+ * @returns {HTMLElement} 段落元素
+ */
+function createParagraphWithAudio(paragraphData, paragraphId, paragraphNum) {
+    // 创建段落容器
+    const paragraphElement = document.createElement('div');
+    paragraphElement.className = 'paragraph-item';
+    paragraphElement.setAttribute('data-paragraph-id', paragraphId);
+
+    // 创建段落头部
+    const paragraphHeader = document.createElement('div');
+    paragraphHeader.className = 'paragraph-header';
+    paragraphHeader.innerHTML = `<div class="paragraph-number">${paragraphNum}</div>`;
+    paragraphElement.appendChild(paragraphHeader);
+
+    // 创建文本内容容器
+    const textContent = document.createElement('div');
+    textContent.className = 'text-content';
+
+    // 获取文本内容，确保原文和粤拼显示格式保持不变
+    const originalText = paragraphData.originalText || '暂无原文内容';
+    const jyutpingText = paragraphData.jyutping || '暂无粤拼标注';
+
+    // 创建原文显示
+    const originalTextDiv = document.createElement('div');
+    originalTextDiv.className = 'original-text';
+    originalTextDiv.textContent = originalText;
+    textContent.appendChild(originalTextDiv);
+
+    // 创建粤拼显示
+    const jyutpingTextDiv = document.createElement('div');
+    jyutpingTextDiv.className = 'jyutping-text';
+    jyutpingTextDiv.textContent = jyutpingText;
+    textContent.appendChild(jyutpingTextDiv);
+
+    paragraphElement.appendChild(textContent);
+
+    // 添加音频控件
+    const audioFile = paragraphData.audioFile;
+    if (audioFile && validateAudioFilePath(audioFile)) {
+        try {
+            // 使用原生音频元素替代旧的音频控件
+            const audioElement = createNativeAudioElement(audioFile, paragraphId);
+            paragraphElement.appendChild(audioElement);
+        } catch (error) {
+            console.error(`创建音频元素失败: ${audioFile}`, error);
+            // 如果创建失败，显示错误信息
+            const errorElement = createNoAudioMessage(`第${paragraphNum}段`);
+            const errorDiv = document.createElement('div');
+            errorDiv.innerHTML = errorElement;
+            paragraphElement.appendChild(errorDiv.firstElementChild);
+        }
+    } else {
+        // 没有音频文件时显示提示信息
+        const noAudioElement = createNoAudioMessage(`第${paragraphNum}段`);
+        const noAudioDiv = document.createElement('div');
+        noAudioDiv.innerHTML = noAudioElement;
+        paragraphElement.appendChild(noAudioDiv.firstElementChild);
     }
+
+    return paragraphElement;
 }
 
 // 渲染Part B内容
@@ -2320,9 +2197,24 @@ function renderPartBContent(container, course, contentData) {
         return;
     }
 
-    let paragraphsHTML = '';
-    const audioInitTasks = []; // 存储音频初始化任务
+    // 创建Part B内容容器
+    const partBContainer = document.createElement('div');
+    partBContainer.className = 'part-b-content';
 
+    // 创建标题部分
+    const headerElement = document.createElement('div');
+    headerElement.className = 'part-header';
+    headerElement.innerHTML = `
+        <h3 class="part-title">${course.name} - Part B</h3>
+        <span class="part-type">${partBData.length}段内容</span>
+    `;
+    partBContainer.appendChild(headerElement);
+
+    // 创建段落列表容器
+    const paragraphListContainer = document.createElement('div');
+    paragraphListContainer.className = 'paragraph-list';
+
+    // 为每个段落创建段落卡片
     partBData.forEach((paragraphData, index) => {
         // 验证段落数据结构
         if (!paragraphData || typeof paragraphData !== 'object') {
@@ -2335,65 +2227,19 @@ function renderPartBContent(container, course, contentData) {
             ? paragraphData.paragraph
             : (index + 1);
 
-        const audioFile = paragraphData.audioFile;
+        // 生成唯一的段落ID
+        const paragraphId = `part-b-${course.id}-${paragraphNum}`;
 
-        // 验证音频文件路径
-        const validAudioFile = audioFile && validateAudioFilePath(audioFile);
-
-        // 获取文本内容，确保有默认值
-        const originalText = (paragraphData.originalText && paragraphData.originalText.trim())
-            ? paragraphData.originalText.trim()
-            : '暂无原文内容';
-        const jyutpingText = (paragraphData.jyutping && paragraphData.jyutping.trim())
-            ? paragraphData.jyutping.trim()
-            : '暂无粤拼标注';
-
-        // 生成唯一的音频ID
-        const audioId = `part-b-${course.id}-${paragraphNum}`;
-
-        paragraphsHTML += `
-            <div class="paragraph-item" data-paragraph="${paragraphNum}">
-                <div class="paragraph-header">
-                    <div class="paragraph-number">${paragraphNum}</div>
-                </div>
-                
-                <div class="text-content">
-                    <div class="original-text">${originalText}</div>
-                    <div class="jyutping-text">${jyutpingText}</div>
-                </div>
-                
-                ${validAudioFile ? createAudioControls(audioFile, audioId) : createNoAudioMessage(`第${paragraphNum}段`)}
-            </div>
-        `;
-
-        // 记录需要初始化的音频控件
-        if (validAudioFile) {
-            audioInitTasks.push({
-                audioId: audioId,
-                audioFile: audioFile,
-                paragraphNum: paragraphNum
-            });
-        }
+        // 创建段落卡片
+        const paragraphCard = createParagraphCard(paragraphData, paragraphId, paragraphNum);
+        paragraphListContainer.appendChild(paragraphCard);
     });
 
-    // 如果没有有效的段落，显示错误
-    if (!paragraphsHTML.trim()) {
-        showContentError(container, 'Part B 没有有效的段落内容');
-        return;
-    }
+    partBContainer.appendChild(paragraphListContainer);
 
-    container.innerHTML = `
-        <div class="part-b-content">
-            <div class="part-header">
-                <h3 class="part-title">${course.name} - Part B</h3>
-                <span class="part-type">${partBData.length}段内容</span>
-            </div>
-            
-            <div class="paragraph-list">
-                ${paragraphsHTML}
-            </div>
-        </div>
-    `;
+    // 清空容器并添加新内容
+    container.innerHTML = '';
+    container.appendChild(partBContainer);
 
     // 添加段落进入动画
     setTimeout(() => {
@@ -2401,25 +2247,549 @@ function renderPartBContent(container, course, contentData) {
         addAudioControlsEnterAnimations(container);
     }, 50);
 
-    // 初始化所有音频控件
-    if (audioInitTasks.length > 0) {
-        // 使用setTimeout确保DOM元素已经渲染
-        setTimeout(() => {
-            audioInitTasks.forEach(task => {
-                try {
-                    initAudioControls(task.audioId, task.audioFile);
-                    console.log(`Part B 音频控件初始化成功: 段落${task.paragraphNum}, ID: ${task.audioId}`);
-                } catch (error) {
-                    console.error(`Part B 音频控件初始化失败: 段落${task.paragraphNum}`, error);
-                }
-            });
-        }, 100);
-    }
-
-    console.log(`Part B 渲染完成: ${course.name}, ${partBData.length} 个段落, ${audioInitTasks.length} 个音频控件`);
+    console.log(`Part B 渲染完成: ${course.name}, ${partBData.length} 个段落`);
 }
 
-// 创建音频控件HTML
+/**
+ * 创建段落卡片，在段落卡片中嵌入原生音频元素
+ * @param {Object} paragraphData - 段落数据
+ * @param {string} paragraphId - 段落ID
+ * @param {number} paragraphNum - 段落编号
+ * @returns {HTMLElement} 段落卡片元素
+ */
+function createParagraphCard(paragraphData, paragraphId, paragraphNum) {
+    // 创建段落卡片容器
+    const card = document.createElement('div');
+    card.className = 'paragraph-item';
+    card.setAttribute('data-paragraph', paragraphNum);
+    card.setAttribute('data-paragraph-id', paragraphId);
+
+    // 创建段落标题
+    const headerElement = document.createElement('div');
+    headerElement.className = 'paragraph-header';
+    headerElement.innerHTML = `<div class="paragraph-number">${paragraphNum}</div>`;
+    card.appendChild(headerElement);
+
+    // 创建文本内容区域
+    const textContent = document.createElement('div');
+    textContent.className = 'text-content';
+
+    // 获取文本内容，确保有默认值
+    const originalText = (paragraphData.originalText && paragraphData.originalText.trim())
+        ? paragraphData.originalText.trim()
+        : '暂无原文内容';
+    const jyutpingText = (paragraphData.jyutping && paragraphData.jyutping.trim())
+        ? paragraphData.jyutping.trim()
+        : '暂无粤拼标注';
+
+    textContent.innerHTML = `
+        <div class="original-text">${originalText}</div>
+        <div class="jyutping-text">${jyutpingText}</div>
+    `;
+    card.appendChild(textContent);
+
+    // 创建音频控件区域
+    const audioContainer = document.createElement('div');
+    audioContainer.className = 'audio-container';
+
+    const audioFile = paragraphData.audioFile;
+    if (audioFile && validateAudioFilePath(audioFile)) {
+        // 创建原生音频元素
+        const audioElement = createNativeAudioElement(audioFile, paragraphId);
+        audioContainer.appendChild(audioElement);
+    } else {
+        // 创建无音频消息
+        const noAudioMessage = document.createElement('div');
+        noAudioMessage.className = 'audio-controls';
+        noAudioMessage.innerHTML = `
+            <div class="audio-error">
+                <span class="btn-icon">🔇</span>
+                第${paragraphNum}段暂无音频文件
+            </div>
+        `;
+        audioContainer.appendChild(noAudioMessage);
+    }
+
+    card.appendChild(audioContainer);
+
+    return card;
+}
+
+// ===== 原生音频元素工厂函数 =====
+
+/**
+ * 创建原生HTML5音频元素
+ * @param {string} audioFile - 音频文件路径
+ * @param {string} paragraphId - 段落ID，用于生成唯一的音频元素ID
+ * @returns {HTMLElement} 包装的音频元素容器
+ */
+function createNativeAudioElement(audioFile, paragraphId) {
+    // 创建音频元素包装容器
+    const audioWrapper = document.createElement('div');
+    audioWrapper.className = 'native-audio-wrapper';
+    audioWrapper.setAttribute('data-paragraph-id', paragraphId);
+
+    try {
+        // 解析音频文件路径
+        const resolvedPath = resolveAudioFilePath(audioFile);
+        console.log(`创建原生音频元素: ${audioFile} -> ${resolvedPath}`);
+
+        // 创建HTML5 audio元素
+        const audio = document.createElement('audio');
+
+        // 配置音频元素的基本属性
+        audio.controls = true;
+        audio.preload = 'metadata';
+        audio.src = resolvedPath;
+        audio.id = `audio-${paragraphId}`;
+        audio.className = 'native-audio-player';
+
+        // 设置额外的音频属性
+        audio.setAttribute('controlsList', 'nodownload');
+        audio.setAttribute('disablePictureInPicture', '');
+
+        // 设置默认音量
+        audio.volume = 0.8;
+
+        // 添加音频元素的事件监听器
+        attachAudioEventListeners(audio, paragraphId, audioFile);
+
+        // 将音频元素添加到包装容器
+        audioWrapper.appendChild(audio);
+
+        // 添加音频信息显示
+        const audioInfo = document.createElement('div');
+        audioInfo.className = 'audio-info';
+        audioInfo.innerHTML = `
+            <span class="audio-filename" title="${audioFile}">${audioFile.split('/').pop()}</span>
+        `;
+        audioWrapper.appendChild(audioInfo);
+
+        return audioWrapper;
+
+    } catch (error) {
+        console.error(`创建原生音频元素失败: ${audioFile}`, error);
+        return createAudioErrorElement(audioFile, paragraphId, error.message);
+    }
+}
+
+/**
+ * 为音频元素添加事件监听器
+ * @param {HTMLAudioElement} audio - 音频元素
+ * @param {string} paragraphId - 段落ID
+ * @param {string} audioFile - 音频文件路径
+ */
+function attachAudioEventListeners(audio, paragraphId, audioFile) {
+    // 播放事件监听器
+    audio.addEventListener('play', () => {
+        console.log(`音频开始播放: ${paragraphId} - ${audioFile}`);
+
+        // 使用SimpleAudioController暂停其他音频
+        SimpleAudioController.pauseOtherAudios(audio);
+
+        // 使用SimpleAudioController高亮当前段落
+        SimpleAudioController.highlightCurrentParagraph(paragraphId);
+
+        // 触发自定义事件
+        document.dispatchEvent(new CustomEvent('nativeAudioPlay', {
+            detail: { paragraphId, audioFile, audio }
+        }));
+    });
+
+    // 暂停事件监听器
+    audio.addEventListener('pause', () => {
+        console.log(`音频暂停: ${paragraphId} - ${audioFile}`);
+
+        // 使用SimpleAudioController取消段落高亮
+        SimpleAudioController.unhighlightParagraph(paragraphId);
+
+        // 触发自定义事件
+        document.dispatchEvent(new CustomEvent('nativeAudioPause', {
+            detail: { paragraphId, audioFile, audio }
+        }));
+    });
+
+    // 结束事件监听器
+    audio.addEventListener('ended', () => {
+        console.log(`音频播放结束: ${paragraphId} - ${audioFile}`);
+
+        // 使用SimpleAudioController取消段落高亮
+        SimpleAudioController.unhighlightParagraph(paragraphId);
+
+        // 触发自定义事件
+        document.dispatchEvent(new CustomEvent('nativeAudioEnded', {
+            detail: { paragraphId, audioFile, audio }
+        }));
+    });
+
+    // 错误事件监听器
+    audio.addEventListener('error', (event) => {
+        const error = audio.error;
+        let errorMessage = '音频加载失败';
+
+        if (error) {
+            switch (error.code) {
+                case error.MEDIA_ERR_ABORTED:
+                    errorMessage = '音频加载被中断';
+                    break;
+                case error.MEDIA_ERR_NETWORK:
+                    errorMessage = '网络错误，无法加载音频';
+                    break;
+                case error.MEDIA_ERR_DECODE:
+                    errorMessage = '音频解码失败';
+                    break;
+                case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                    errorMessage = '不支持的音频格式或文件不存在';
+                    break;
+                default:
+                    errorMessage = '未知音频错误';
+            }
+        }
+
+        console.error(`音频加载错误: ${paragraphId} - ${audioFile}`, errorMessage, error);
+
+        // 显示错误信息
+        showAudioError(audio.parentElement, audioFile, errorMessage);
+
+        // 触发自定义事件
+        document.dispatchEvent(new CustomEvent('nativeAudioError', {
+            detail: { paragraphId, audioFile, audio, error: errorMessage }
+        }));
+    });
+
+    // 加载开始事件监听器
+    audio.addEventListener('loadstart', () => {
+        console.log(`音频开始加载: ${paragraphId} - ${audioFile}`);
+    });
+
+    // 可以播放事件监听器
+    audio.addEventListener('canplay', () => {
+        console.log(`音频可以播放: ${paragraphId} - ${audioFile}`);
+    });
+
+    // 音量变化事件监听器
+    audio.addEventListener('volumechange', () => {
+        console.log(`音频音量变化: ${paragraphId} - 音量: ${audio.volume}, 静音: ${audio.muted}`);
+    });
+}
+
+// ===== 简化的音频控制系统 =====
+
+/**
+ * 简化的音频控制器类，替换复杂的AudioPlayerManager
+ * 提供基础的音频控制功能，依赖浏览器原生音频元素
+ */
+class SimpleAudioController {
+    /**
+     * 暂停所有其他音频播放，确保同时只有一个音频播放
+     * @param {HTMLAudioElement} currentAudio - 当前播放的音频元素
+     */
+    static pauseOtherAudios(currentAudio) {
+        const allAudios = document.querySelectorAll('audio.native-audio-player');
+        let pausedCount = 0;
+
+        allAudios.forEach(audio => {
+            if (audio !== currentAudio && !audio.paused) {
+                audio.pause();
+                pausedCount++;
+
+                // 取消对应段落的高亮
+                const audioWrapper = audio.closest('.native-audio-wrapper');
+                if (audioWrapper) {
+                    const paragraphId = audioWrapper.getAttribute('data-paragraph-id');
+                    if (paragraphId) {
+                        SimpleAudioController.unhighlightParagraph(paragraphId);
+                    }
+                }
+            }
+        });
+
+        if (pausedCount > 0) {
+            console.log(`SimpleAudioController: 暂停了 ${pausedCount} 个其他音频`);
+        }
+
+        return pausedCount;
+    }
+
+    /**
+     * 停止所有音频播放并重置播放位置
+     */
+    static stopAllAudios() {
+        const allAudios = document.querySelectorAll('audio.native-audio-player');
+        let stoppedCount = 0;
+
+        allAudios.forEach(audio => {
+            if (!audio.paused || audio.currentTime > 0) {
+                audio.pause();
+                audio.currentTime = 0;
+                stoppedCount++;
+
+                // 取消对应段落的高亮
+                const audioWrapper = audio.closest('.native-audio-wrapper');
+                if (audioWrapper) {
+                    const paragraphId = audioWrapper.getAttribute('data-paragraph-id');
+                    if (paragraphId) {
+                        SimpleAudioController.unhighlightParagraph(paragraphId);
+                    }
+                }
+            }
+        });
+
+        // 移除所有段落高亮
+        document.querySelectorAll('.paragraph-playing').forEach(element => {
+            element.classList.remove('paragraph-playing');
+        });
+
+        console.log(`SimpleAudioController: 停止了 ${stoppedCount} 个音频`);
+        return stoppedCount;
+    }
+
+    /**
+     * 设置所有音频的音量
+     * @param {number} volume - 音量值 (0.0 - 1.0)
+     */
+    static setGlobalVolume(volume) {
+        // 验证音量范围
+        if (typeof volume !== 'number' || volume < 0 || volume > 1) {
+            console.warn('SimpleAudioController: 无效的音量值，应该在 0.0 - 1.0 之间');
+            return false;
+        }
+
+        const allAudios = document.querySelectorAll('audio.native-audio-player');
+        let updatedCount = 0;
+
+        allAudios.forEach(audio => {
+            audio.volume = volume;
+            updatedCount++;
+        });
+
+        console.log(`SimpleAudioController: 设置了 ${updatedCount} 个音频的音量为 ${volume}`);
+        return updatedCount;
+    }
+
+    /**
+     * 高亮当前播放的段落
+     * @param {string} paragraphId - 段落ID
+     */
+    static highlightCurrentParagraph(paragraphId) {
+        // 先移除所有段落的高亮
+        document.querySelectorAll('.paragraph-playing').forEach(element => {
+            element.classList.remove('paragraph-playing');
+        });
+
+        // 高亮当前段落
+        const paragraphElement = document.querySelector(`[data-paragraph-id="${paragraphId}"]`);
+        if (paragraphElement) {
+            paragraphElement.classList.add('paragraph-playing');
+            console.log(`SimpleAudioController: 高亮段落 ${paragraphId}`);
+
+            // 触发段落高亮事件
+            const event = new CustomEvent('paragraphHighlight', {
+                detail: { paragraphId, element: paragraphElement }
+            });
+            document.dispatchEvent(event);
+
+            return true;
+        } else {
+            console.warn(`SimpleAudioController: 找不到段落元素 ${paragraphId}`);
+            return false;
+        }
+    }
+
+    /**
+     * 取消段落高亮
+     * @param {string} paragraphId - 段落ID
+     */
+    static unhighlightParagraph(paragraphId) {
+        const paragraphElement = document.querySelector(`[data-paragraph-id="${paragraphId}"]`);
+        if (paragraphElement) {
+            paragraphElement.classList.remove('paragraph-playing');
+            console.log(`SimpleAudioController: 取消高亮段落 ${paragraphId}`);
+
+            // 触发段落取消高亮事件
+            const event = new CustomEvent('paragraphUnhighlight', {
+                detail: { paragraphId, element: paragraphElement }
+            });
+            document.dispatchEvent(event);
+
+            return true;
+        } else {
+            console.warn(`SimpleAudioController: 找不到段落元素 ${paragraphId}`);
+            return false;
+        }
+    }
+
+    /**
+     * 获取当前播放的音频信息
+     * @returns {Object|null} 当前播放的音频信息
+     */
+    static getCurrentPlayingAudio() {
+        const allAudios = document.querySelectorAll('audio.native-audio-player');
+
+        for (const audio of allAudios) {
+            if (!audio.paused) {
+                const audioWrapper = audio.closest('.native-audio-wrapper');
+                const paragraphId = audioWrapper ? audioWrapper.getAttribute('data-paragraph-id') : null;
+
+                return {
+                    audio: audio,
+                    paragraphId: paragraphId,
+                    currentTime: audio.currentTime,
+                    duration: audio.duration,
+                    volume: audio.volume,
+                    src: audio.src
+                };
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取所有音频元素的状态信息
+     * @returns {Array} 所有音频的状态信息
+     */
+    static getAllAudioStatus() {
+        const allAudios = document.querySelectorAll('audio.native-audio-player');
+        const statusList = [];
+
+        allAudios.forEach((audio, index) => {
+            const audioWrapper = audio.closest('.native-audio-wrapper');
+            const paragraphId = audioWrapper ? audioWrapper.getAttribute('data-paragraph-id') : null;
+
+            statusList.push({
+                index: index,
+                paragraphId: paragraphId,
+                paused: audio.paused,
+                currentTime: audio.currentTime,
+                duration: audio.duration,
+                volume: audio.volume,
+                src: audio.src,
+                readyState: audio.readyState,
+                networkState: audio.networkState
+            });
+        });
+
+        return statusList;
+    }
+}
+
+// ===== 向后兼容的全局函数 =====
+
+/**
+ * 暂停所有其他音频元素（向后兼容函数）
+ * @param {HTMLAudioElement} currentAudio - 当前播放的音频元素
+ */
+function pauseOtherAudios(currentAudio) {
+    return SimpleAudioController.pauseOtherAudios(currentAudio);
+}
+
+/**
+ * 高亮当前播放的段落（向后兼容函数）
+ * @param {string} paragraphId - 段落ID
+ */
+function highlightCurrentParagraph(paragraphId) {
+    return SimpleAudioController.highlightCurrentParagraph(paragraphId);
+}
+
+/**
+ * 取消段落高亮（向后兼容函数）
+ * @param {string} paragraphId - 段落ID
+ */
+function unhighlightParagraph(paragraphId) {
+    return SimpleAudioController.unhighlightParagraph(paragraphId);
+}
+
+/**
+ * 显示音频错误信息
+ * @param {HTMLElement} audioWrapper - 音频包装容器
+ * @param {string} audioFile - 音频文件路径
+ * @param {string} errorMessage - 错误信息
+ */
+function showAudioError(audioWrapper, audioFile, errorMessage) {
+    // 清空容器内容
+    audioWrapper.innerHTML = '';
+    audioWrapper.className = 'native-audio-wrapper audio-error';
+
+    // 创建错误信息元素
+    const errorElement = document.createElement('div');
+    errorElement.className = 'audio-error-message';
+    errorElement.innerHTML = `
+        <div class="error-content">
+            <div class="error-icon">⚠️</div>
+            <div class="error-text">
+                <div class="error-title">${errorMessage}</div>
+                <div class="error-details">${audioFile}</div>
+            </div>
+            <button class="retry-button" onclick="retryAudioLoad('${audioFile}', this)" title="重新加载音频">
+                🔄 重试
+            </button>
+        </div>
+    `;
+
+    audioWrapper.appendChild(errorElement);
+}
+
+/**
+ * 重试音频加载
+ * @param {string} audioFile - 音频文件路径
+ * @param {HTMLElement} retryButton - 重试按钮元素
+ */
+function retryAudioLoad(audioFile, retryButton) {
+    const audioWrapper = retryButton.closest('.native-audio-wrapper');
+    const paragraphId = audioWrapper.getAttribute('data-paragraph-id');
+
+    console.log(`重试加载音频: ${audioFile}`);
+
+    // 显示加载状态
+    retryButton.textContent = '🔄 加载中...';
+    retryButton.disabled = true;
+
+    // 重新创建音频元素
+    try {
+        const newAudioElement = createNativeAudioElement(audioFile, paragraphId);
+        audioWrapper.parentNode.replaceChild(newAudioElement, audioWrapper);
+    } catch (error) {
+        console.error(`重试加载失败: ${audioFile}`, error);
+        retryButton.textContent = '❌ 加载失败';
+        setTimeout(() => {
+            retryButton.textContent = '🔄 重试';
+            retryButton.disabled = false;
+        }, 2000);
+    }
+}
+
+/**
+ * 创建音频错误元素
+ * @param {string} audioFile - 音频文件路径
+ * @param {string} paragraphId - 段落ID
+ * @param {string} errorMessage - 错误信息
+ * @returns {HTMLElement} 错误元素
+ */
+function createAudioErrorElement(audioFile, paragraphId, errorMessage) {
+    const errorWrapper = document.createElement('div');
+    errorWrapper.className = 'native-audio-wrapper audio-error';
+    errorWrapper.setAttribute('data-paragraph-id', paragraphId);
+
+    errorWrapper.innerHTML = `
+        <div class="audio-error-message">
+            <div class="error-content">
+                <div class="error-icon">⚠️</div>
+                <div class="error-text">
+                    <div class="error-title">${errorMessage}</div>
+                    <div class="error-details">${audioFile}</div>
+                </div>
+                <button class="retry-button" onclick="retryAudioLoad('${audioFile}', this)" title="重新加载音频">
+                    🔄 重试
+                </button>
+            </div>
+        </div>
+    `;
+
+    return errorWrapper;
+}
+
+// 创建音频控件HTML (保留原有函数以兼容现有代码)
 function createAudioControls(audioFile, audioId) {
     // 检查音频是否已预加载
     const isPreloaded = AudioLazyLoader.isLoaded(audioFile);
@@ -3371,7 +3741,7 @@ async function initAudioControls(audioId, audioFile) {
         return;
     }
 
-    // 调试：显示路径解析过程
+
     try {
         const resolvedPath = resolveAudioFilePath(audioFile);
         console.log(`音频路径解析: ${audioFile} -> ${resolvedPath}`);
@@ -3732,105 +4102,7 @@ function showUserFriendlyError(controlsContainer, originalError) {
 
 // 音频播放用户体验优化
 function optimizeAudioUserExperience() {
-    // 添加键盘快捷键支持
-    document.addEventListener('keydown', (event) => {
-        // 只在非输入元素上响应快捷键
-        if (event.target.matches('input, textarea, select, [contenteditable]')) {
-            return;
-        }
 
-        const playingPlayer = Array.from(AudioPlayerManager.players.values())
-            .find(player => player.currentState === 'playing');
-        const availablePlayer = Array.from(AudioPlayerManager.players.values())
-            .find(player => !player.hasError);
-
-        switch (event.code) {
-            case 'Space':
-                // 空格键：播放/暂停当前音频
-                event.preventDefault();
-                if (playingPlayer) {
-                    playingPlayer.pause();
-                    showKeyboardShortcutFeedback('⏸️ 已暂停');
-                } else if (availablePlayer) {
-                    availablePlayer.play();
-                    showKeyboardShortcutFeedback('▶️ 开始播放');
-                }
-                break;
-
-            case 'Escape':
-                // Escape键：停止所有音频
-                event.preventDefault();
-                let stoppedCount = 0;
-                AudioPlayerManager.players.forEach(player => {
-                    if (player.currentState === 'playing' || player.currentState === 'paused') {
-                        player.stop();
-                        stoppedCount++;
-                    }
-                });
-                if (stoppedCount > 0) {
-                    showKeyboardShortcutFeedback(`⏹️ 已停止 ${stoppedCount} 个音频`);
-                }
-                break;
-
-            case 'ArrowLeft':
-                // 左箭头：后退5秒
-                event.preventDefault();
-                if (playingPlayer && playingPlayer.audio) {
-                    const newTime = Math.max(0, playingPlayer.audio.currentTime - 5);
-                    playingPlayer.audio.currentTime = newTime;
-                    showKeyboardShortcutFeedback('⏪ 后退5秒');
-                }
-                break;
-
-            case 'ArrowRight':
-                // 右箭头：前进5秒
-                event.preventDefault();
-                if (playingPlayer && playingPlayer.audio) {
-                    const newTime = Math.min(playingPlayer.audio.duration || 0, playingPlayer.audio.currentTime + 5);
-                    playingPlayer.audio.currentTime = newTime;
-                    showKeyboardShortcutFeedback('⏩ 前进5秒');
-                }
-                break;
-
-            case 'ArrowUp':
-                // 上箭头：增加音量
-                event.preventDefault();
-                if (playingPlayer && playingPlayer.audio) {
-                    const newVolume = Math.min(1, playingPlayer.audio.volume + 0.1);
-                    playingPlayer.audio.volume = newVolume;
-                    showKeyboardShortcutFeedback(`🔊 音量: ${Math.round(newVolume * 100)}%`);
-                }
-                break;
-
-            case 'ArrowDown':
-                // 下箭头：降低音量
-                event.preventDefault();
-                if (playingPlayer && playingPlayer.audio) {
-                    const newVolume = Math.max(0, playingPlayer.audio.volume - 0.1);
-                    playingPlayer.audio.volume = newVolume;
-                    showKeyboardShortcutFeedback(`🔉 音量: ${Math.round(newVolume * 100)}%`);
-                }
-                break;
-
-            case 'KeyM':
-                // M键：静音/取消静音
-                event.preventDefault();
-                if (playingPlayer && playingPlayer.audio) {
-                    playingPlayer.audio.muted = !playingPlayer.audio.muted;
-                    showKeyboardShortcutFeedback(playingPlayer.audio.muted ? '🔇 已静音' : '🔊 取消静音');
-                }
-                break;
-
-            case 'KeyR':
-                // R键：重新播放当前音频
-                event.preventDefault();
-                if (playingPlayer && playingPlayer.audio) {
-                    playingPlayer.audio.currentTime = 0;
-                    showKeyboardShortcutFeedback('🔄 重新播放');
-                }
-                break;
-        }
-    });
 
     // 添加页面可见性变化处理
     document.addEventListener('visibilitychange', () => {
@@ -3859,37 +4131,12 @@ function optimizeAudioUserExperience() {
     // 初始化音量控制
     initVolumeControls();
 
-    // 显示键盘快捷键帮助
-    createKeyboardShortcutHelp();
+
 
     console.log('音频用户体验优化已启用');
 }
 
-// 显示键盘快捷键反馈
-function showKeyboardShortcutFeedback(message) {
-    // 移除现有的反馈元素
-    const existingFeedback = document.querySelector('.keyboard-feedback');
-    if (existingFeedback) {
-        existingFeedback.remove();
-    }
 
-    // 创建新的反馈元素
-    const feedback = document.createElement('div');
-    feedback.className = 'keyboard-feedback';
-    feedback.textContent = message;
-
-    // 添加到页面
-    document.body.appendChild(feedback);
-
-    // 显示动画
-    setTimeout(() => feedback.classList.add('show'), 10);
-
-    // 自动隐藏
-    setTimeout(() => {
-        feedback.classList.remove('show');
-        setTimeout(() => feedback.remove(), 300);
-    }, 1500);
-}
 
 // 初始化音频进度跟踪
 function initAudioProgressTracking() {
@@ -3938,10 +4185,7 @@ function handleProgressBarClick(event, audioId, progressBar) {
     // 设置新的播放位置
     player.audio.currentTime = Math.max(0, Math.min(newTime, player.audio.duration));
 
-    // 显示反馈
-    const minutes = Math.floor(newTime / 60);
-    const seconds = Math.floor(newTime % 60);
-    showKeyboardShortcutFeedback(`⏭️ 跳转到 ${minutes}:${seconds.toString().padStart(2, '0')}`);
+
 }
 
 // 更新音频进度
@@ -4066,90 +4310,7 @@ function createVolumeControl(audioId) {
     return volumeControl;
 }
 
-// 创建键盘快捷键帮助
-function createKeyboardShortcutHelp() {
-    // 检查是否已存在
-    if (document.querySelector('.keyboard-help')) return;
 
-    const helpButton = document.createElement('button');
-    helpButton.className = 'keyboard-help-btn';
-    helpButton.innerHTML = '⌨️';
-    helpButton.title = '键盘快捷键帮助';
-
-    helpButton.addEventListener('click', showKeyboardShortcutHelp);
-
-    // 添加到页面右下角
-    document.body.appendChild(helpButton);
-}
-
-// 显示键盘快捷键帮助
-function showKeyboardShortcutHelp() {
-    // 移除现有的帮助窗口
-    const existingHelp = document.querySelector('.keyboard-help-modal');
-    if (existingHelp) {
-        existingHelp.remove();
-        return;
-    }
-
-    const helpModal = document.createElement('div');
-    helpModal.className = 'keyboard-help-modal';
-    helpModal.innerHTML = `
-        <div class="keyboard-help-content">
-            <div class="help-header">
-                <h3>键盘快捷键</h3>
-                <button class="help-close-btn">×</button>
-            </div>
-            <div class="help-shortcuts">
-                <div class="shortcut-item">
-                    <kbd>空格</kbd>
-                    <span>播放/暂停音频</span>
-                </div>
-                <div class="shortcut-item">
-                    <kbd>Esc</kbd>
-                    <span>停止所有音频</span>
-                </div>
-                <div class="shortcut-item">
-                    <kbd>←</kbd>
-                    <span>后退5秒</span>
-                </div>
-                <div class="shortcut-item">
-                    <kbd>→</kbd>
-                    <span>前进5秒</span>
-                </div>
-                <div class="shortcut-item">
-                    <kbd>↑</kbd>
-                    <span>增加音量</span>
-                </div>
-                <div class="shortcut-item">
-                    <kbd>↓</kbd>
-                    <span>降低音量</span>
-                </div>
-                <div class="shortcut-item">
-                    <kbd>M</kbd>
-                    <span>静音/取消静音</span>
-                </div>
-                <div class="shortcut-item">
-                    <kbd>R</kbd>
-                    <span>重新播放</span>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // 添加关闭事件
-    helpModal.querySelector('.help-close-btn').addEventListener('click', () => {
-        helpModal.remove();
-    });
-
-    // 点击背景关闭
-    helpModal.addEventListener('click', (e) => {
-        if (e.target === helpModal) {
-            helpModal.remove();
-        }
-    });
-
-    document.body.appendChild(helpModal);
-}
 
 // 增强的视觉反馈系统
 const VisualFeedback = {
@@ -4482,4 +4643,3 @@ function updateActiveNavLink() {
     });
 }
 
-// AudioPlayer类已在上方完整实现

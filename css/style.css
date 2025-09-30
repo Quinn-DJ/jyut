@@ -1596,30 +1596,7 @@ body {
     }
 }
 
-/* 键盘快捷键反馈 */
-.keyboard-feedback {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.9);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    font-size: 1.1rem;
-    font-weight: 500;
-    z-index: 10000;
-    opacity: 0;
-    transition: all 0.3s ease;
-    pointer-events: none;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.1);
-}
 
-.keyboard-feedback.show {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.05);
-}
 
 /* 音量控制 */
 .volume-control {
@@ -1694,131 +1671,9 @@ body {
     text-align: right;
 }
 
-/* 键盘快捷键帮助按钮 */
-.keyboard-help-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 1.2rem;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
-    transition: all 0.3s ease;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
-.keyboard-help-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
-}
 
-.keyboard-help-btn:active {
-    transform: translateY(0);
-}
 
-/* 键盘快捷键帮助模态框 */
-.keyboard-help-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(5px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.keyboard-help-content {
-    background: white;
-    border-radius: 12px;
-    padding: 0;
-    max-width: 400px;
-    width: 90%;
-    max-height: 80vh;
-    overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: slideInUp 0.3s ease-out;
-}
-
-.help-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.help-header h3 {
-    margin: 0;
-    font-size: 1.3rem;
-    font-weight: 600;
-}
-
-.help-close-btn {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
-}
-
-.help-close-btn:hover {
-    background: rgba(255,255,255,0.2);
-}
-
-.help-shortcuts {
-    padding: 1.5rem;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.shortcut-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #f1f3f4;
-}
-
-.shortcut-item:last-child {
-    border-bottom: none;
-}
-
-.shortcut-item kbd {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #495057;
-    min-width: 40px;
-    text-align: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-
-.shortcut-item span {
-    flex: 1;
-    color: #495057;
-    font-size: 0.95rem;
-}
 
 /* 增强的视觉反馈动画 */
 .audio-btn.clicked {
@@ -2123,7 +1978,6 @@ body {
 
 /* 动画性能优化 */
 @media (prefers-reduced-motion: reduce) {
-    .keyboard-feedback,
     .audio-controls.enhanced-feedback,
     .part-btn.selecting,
     .course-item.selecting,
@@ -2133,7 +1987,6 @@ body {
         animation: none;
     }
     
-    .keyboard-help-btn:hover,
     .audio-btn:hover,
     .progress-bar:hover {
         transform: none;
@@ -2156,10 +2009,6 @@ body {
     
     .progress-fill {
         background: #000;
-    }
-    
-    .keyboard-feedback {
-        border: 2px solid #fff;
     }
 }
 
@@ -3144,5 +2993,607 @@ body {
         animation: none;
         opacity: 0;
         transform: none;
+    }
+}
+/
+* ===== 原生音频元素样式 ===== */
+
+/* 原生音频包装容器 */
+.native-audio-wrapper {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.native-audio-wrapper:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    border-color: #667eea;
+}
+
+/* 原生音频播放器 */
+.native-audio-player {
+    width: 100%;
+    height: 40px;
+    outline: none;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.native-audio-player:focus {
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+    outline: none;
+}
+
+/* 音频信息显示 */
+.audio-info {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.audio-filename {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 音频错误状态 */
+.native-audio-wrapper.audio-error {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-color: #ffc107;
+}
+
+.audio-error-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+}
+
+.error-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.error-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.error-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.error-title {
+    font-weight: 600;
+    color: #856404;
+    margin-bottom: 0.25rem;
+}
+
+.error-details {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    word-break: break-all;
+}
+
+.retry-button {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.retry-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.retry-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.retry-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 段落播放状态高亮 */
+.paragraph-playing {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%) !important;
+    border-color: #2196f3 !important;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
+    animation: playingPulse 2s ease-in-out infinite;
+}
+
+@keyframes playingPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.1);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .native-audio-wrapper {
+        margin: 0.75rem 0;
+        padding: 0.75rem;
+    }
+    
+    .native-audio-player {
+        height: 36px;
+    }
+    
+    .audio-info {
+        font-size: 0.8rem;
+    }
+    
+    .audio-filename {
+        max-width: 150px;
+        font-size: 0.75rem;
+    }
+    
+    .error-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .retry-button {
+        align-self: flex-end;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .native-audio-wrapper {
+        margin: 0.5rem 0;
+        padding: 0.5rem;
+    }
+    
+    .native-audio-player {
+        height: 32px;
+    }
+    
+    .audio-filename {
+        max-width: 120px;
+    }
+}
+
+/* 音频控件在不同浏览器中的样式优化 */
+.native-audio-player::-webkit-media-controls-panel {
+    background-color: #ffffff;
+}
+
+.native-audio-player::-webkit-media-controls-play-button,
+.native-audio-player::-webkit-media-controls-pause-button {
+    background-color: #667eea;
+    border-radius: 50%;
+}
+
+.native-audio-player::-webkit-media-controls-timeline {
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.native-audio-player::-webkit-media-controls-current-time-display,
+.native-audio-player::-webkit-media-controls-time-remaining-display {
+    color: #495057;
+    font-size: 0.8rem;
+}
+
+/* Firefox 音频控件样式 */
+.native-audio-player::-moz-range-track {
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.native-audio-player::-moz-range-thumb {
+    background-color: #667eea;
+    border: none;
+    border-radius: 50%;
+}
+
+/* 音频加载状态指示 */
+.native-audio-wrapper[data-loading="true"] {
+    position: relative;
+}
+
+.native-audio-wrapper[data-loading="true"]::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.native-audio-wrapper[data-loading="true"]::before {
+    content: '🔄';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    z-index: 1;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+/*
+ ===== 原生音频控件样式 (Part B 段落卡片) ===== */
+
+/* 音频容器在段落卡片中的样式 */
+.paragraph-item .audio-container {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(102, 126, 234, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+/* 原生音频包装器在段落卡片中的样式 */
+.paragraph-item .native-audio-wrapper {
+    margin: 0;
+    padding: 0.5rem;
+    background: #ffffff;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* 原生音频播放器在段落卡片中的样式 */
+.paragraph-item .native-audio-player {
+    width: 100%;
+    height: 36px;
+    outline: none;
+    border-radius: 4px;
+}
+
+/* 音频播放器焦点状态 */
+.paragraph-item .native-audio-player:focus {
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+}
+
+/* 音频信息显示 */
+.paragraph-item .audio-info {
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.paragraph-item .audio-filename {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+/* 段落播放状态高亮 */
+.paragraph-item.paragraph-playing {
+    background: linear-gradient(135deg, rgba(39, 174, 96, 0.05) 0%, rgba(46, 204, 113, 0.05) 100%);
+    border-color: rgba(39, 174, 96, 0.2);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.1);
+    transform: translateY(-1px);
+    transition: all 0.3s ease;
+}
+
+.paragraph-item.paragraph-playing .audio-container {
+    background: rgba(39, 174, 96, 0.08);
+    border-color: rgba(39, 174, 96, 0.2);
+}
+
+.paragraph-item.paragraph-playing .native-audio-wrapper {
+    background: #f8fff9;
+    border-color: rgba(39, 174, 96, 0.3);
+    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.15);
+}
+
+/* 音频错误状态在段落卡片中的样式 */
+.paragraph-item .native-audio-wrapper.audio-error {
+    background: #fff5f5;
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.paragraph-item .audio-error-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    color: #856404;
+    font-size: 0.85rem;
+}
+
+.paragraph-item .error-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.paragraph-item .error-icon {
+    font-size: 1.2rem;
+}
+
+.paragraph-item .error-text {
+    flex: 1;
+}
+
+.paragraph-item .error-title {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.paragraph-item .error-details {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.paragraph-item .retry-button {
+    padding: 0.25rem 0.75rem;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.paragraph-item .retry-button:hover {
+    background: #5a67d8;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.paragraph-item .retry-button:active {
+    transform: translateY(0);
+}
+
+/* 响应式设计 - 移动设备优化 */
+@media (max-width: 768px) {
+    .paragraph-item .audio-container {
+        margin-top: 0.75rem;
+        padding: 0.5rem;
+    }
+    
+    .paragraph-item .native-audio-wrapper {
+        padding: 0.4rem;
+    }
+    
+    .paragraph-item .native-audio-player {
+        height: 32px;
+    }
+    
+    .paragraph-item .audio-info {
+        margin-top: 0.4rem;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
+    }
+    
+    .paragraph-item .audio-filename {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .paragraph-item .audio-container {
+        margin-top: 0.5rem;
+        padding: 0.4rem;
+    }
+    
+    .paragraph-item .native-audio-wrapper {
+        padding: 0.3rem;
+    }
+    
+    .paragraph-item .native-audio-player {
+        height: 30px;
+    }
+    
+    .paragraph-item .audio-error-message {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+    
+    .paragraph-item .error-content {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}
+/* ==
+=== SimpleAudioController 段落高亮样式 ===== */
+
+/* 段落播放状态高亮效果 */
+.paragraph-playing {
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.08) 0%, rgba(33, 150, 243, 0.12) 100%) !important;
+    border-color: rgba(33, 150, 243, 0.3) !important;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15), 0 4px 12px rgba(33, 150, 243, 0.1) !important;
+    transform: translateY(-1px) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    animation: paragraphPlayingPulse 2s ease-in-out infinite;
+}
+
+/* 段落播放状态脉冲动画 */
+@keyframes paragraphPlayingPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15), 0 4px 12px rgba(33, 150, 243, 0.1);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.1), 0 6px 16px rgba(33, 150, 243, 0.15);
+    }
+}
+
+/* Part A 段落播放状态 */
+.part-a-content .paragraph-playing {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(102, 126, 234, 0.12) 100%) !important;
+    border-left-color: #667eea !important;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15), 0 4px 12px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Part B 段落卡片播放状态 */
+.part-b-content .paragraph-item.paragraph-playing {
+    background: linear-gradient(135deg, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.12) 100%) !important;
+    border-color: rgba(39, 174, 96, 0.3) !important;
+    box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.15), 0 4px 12px rgba(39, 174, 96, 0.1) !important;
+}
+
+/* 段落播放状态中的音频控件样式 */
+.paragraph-playing .native-audio-wrapper {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-color: rgba(33, 150, 243, 0.3) !important;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15) !important;
+}
+
+.paragraph-playing .native-audio-player {
+    background: #ffffff !important;
+    box-shadow: inset 0 1px 3px rgba(33, 150, 243, 0.1) !important;
+}
+
+/* 段落播放状态指示器 */
+.paragraph-playing::before {
+    content: '🎵';
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 1.2rem;
+    z-index: 10;
+    animation: playingIndicator 1.5s ease-in-out infinite;
+}
+
+@keyframes playingIndicator {
+    0%, 100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .paragraph-playing::before {
+        font-size: 1rem;
+        top: 0.25rem;
+        right: 0.25rem;
+    }
+    
+    .paragraph-playing {
+        transform: none !important;
+    }
+    
+    @keyframes paragraphPlayingPulse {
+        0%, 100% {
+            box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.15), 0 2px 8px rgba(33, 150, 243, 0.1);
+        }
+        50% {
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1), 0 4px 12px rgba(33, 150, 243, 0.15);
+        }
+    }
+}
+
+/* 减少动画偏好设置支持 */
+@media (prefers-reduced-motion: reduce) {
+    .paragraph-playing {
+        animation: none !important;
+        transform: none !important;
+    }
+    
+    .paragraph-playing::before {
+        animation: none !important;
+        opacity: 0.8 !important;
+        transform: none !important;
+    }
+    
+    @keyframes paragraphPlayingPulse {
+        0%, 100% {
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15), 0 4px 12px rgba(33, 150, 243, 0.1);
+        }
+    }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    .paragraph-playing {
+        background: linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(33, 150, 243, 0.2) 100%) !important;
+        border-color: rgba(33, 150, 243, 0.4) !important;
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2), 0 4px 12px rgba(33, 150, 243, 0.15) !important;
+    }
+    
+    .paragraph-playing .native-audio-wrapper {
+        background: rgba(45, 45, 45, 0.9) !important;
+        border-color: rgba(33, 150, 243, 0.4) !important;
+    }
+    
+    .paragraph-playing .native-audio-player {
+        background: #2d2d2d !important;
+    }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+    .paragraph-playing {
+        background: #e3f2fd !important;
+        border: 3px solid #2196f3 !important;
+        box-shadow: none !important;
+    }
+    
+    .paragraph-playing .native-audio-wrapper {
+        border: 2px solid #2196f3 !important;
+    }
+    
+    .paragraph-playing::before {
+        background: #2196f3;
+        color: white;
+        padding: 0.25rem;
+        border-radius: 50%;
     }
 }
