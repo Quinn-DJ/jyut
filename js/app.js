@@ -455,6 +455,9 @@ async function initApp() {
         // 测试音频路径解析（开发调试）
         testAudioPathResolution();
 
+        // 检测音频格式支持
+        checkBrowserAudioSupport();
+
     } catch (error) {
         console.error('应用初始化失败:', error);
 
@@ -881,9 +884,19 @@ function testAudioPathResolution() {
 
     console.log('=== 音频路径解析测试 ===');
     console.log(`当前页面路径: ${window.location.pathname}`);
+    console.log(`当前Hash: ${window.location.hash}`);
     console.log(`当前完整URL: ${window.location.href}`);
     console.log(`基础路径: ${getBasePath()}`);
     console.log(`是否为GitHub Pages: ${window.location.origin.includes('github.io')}`);
+
+    // 分析hash路径
+    if (window.location.hash && window.location.hash.includes('/')) {
+        const hashPath = window.location.hash.substring(1);
+        const hashSegments = hashPath.split('/').filter(segment => segment.length > 0);
+        console.log(`Hash路径段数: ${hashSegments.length} (${hashSegments.join(', ')})`);
+        console.log(`实际使用的相对路径: ../../`);
+        console.log(`示例: 如果hash是 #Class01/A，则音频路径应该是 ../../Sound/Class01/a_1.opus`);
+    }
 
     testPaths.forEach(path => {
         try {
@@ -895,6 +908,47 @@ function testAudioPathResolution() {
     });
     console.log('=== 测试结束 ===');
 }
+
+// 检测浏览器音频格式支持
+function checkBrowserAudioSupport() {
+    const audio = new Audio();
+    const formats = {
+        opus: audio.canPlayType('audio/opus'),
+        ogg_opus: audio.canPlayType('audio/ogg; codecs="opus"'),
+        webm_opus: audio.canPlayType('audio/webm; codecs="opus"'),
+        mp3: audio.canPlayType('audio/mpeg'),
+        wav: audio.canPlayType('audio/wav'),
+        ogg: audio.canPlayType('audio/ogg'),
+        m4a: audio.canPlayType('audio/mp4'),
+        aac: audio.canPlayType('audio/aac')
+    };
+
+    console.log('=== 浏览器音频格式支持检测 ===');
+    console.log(`浏览器: ${navigator.userAgent.split(' ').pop()}`);
+
+    Object.entries(formats).forEach(([format, support]) => {
+        const supportLevel = support === 'probably' ? '✅ 完全支持' :
+            support === 'maybe' ? '⚠️ 可能支持' : '❌ 不支持';
+        console.log(`${format}: ${supportLevel} (${support})`);
+    });
+
+    // 特别检查Opus支持
+    const opusSupported = formats.opus !== '' || formats.ogg_opus !== '' || formats.webm_opus !== '';
+    if (!opusSupported) {
+        console.warn('⚠️ 当前浏览器不支持Opus格式！建议提供MP3格式的备用文件。');
+        console.log('💡 解决方案：');
+        console.log('1. 使用在线转换工具将.opus文件转换为.mp3格式');
+        console.log('2. 或者使用支持Opus的现代浏览器（Chrome 33+, Firefox 15+, Edge 14+）');
+    } else {
+        console.log('✅ 当前浏览器支持Opus格式');
+    }
+
+    console.log('=== 检测结束 ===');
+    return formats;
+}
+
+// 暴露音频格式检测到全局
+window.checkAudioSupport = checkBrowserAudioSupport;
 
 // 手动测试音频播放（开发调试用）
 window.testAudioPlayback = function (audioPath) {
@@ -3178,16 +3232,25 @@ const AudioPlayerManager = {
         if (!controlsContainer) return;
 
         const suggestion = player.getFormatSuggestion();
-        if (suggestion) {
-            const statusDiv = controlsContainer.querySelector('.audio-status');
-            if (statusDiv) {
-                statusDiv.innerHTML = `
-                    <div class="format-error">
-                        <div>格式不支持</div>
-                        <div class="format-suggestion">${suggestion}</div>
+        const statusDiv = controlsContainer.querySelector('.audio-status');
+        if (statusDiv) {
+            statusDiv.innerHTML = `
+                <div class="format-error">
+                    <div class="error-title">⚠️ 音频格式不支持</div>
+                    <div class="format-suggestion">${suggestion || '您的浏览器不支持此音频格式'}</div>
+                    <div class="format-help">
+                        <small>建议使用最新版本的 Chrome、Firefox 或 Edge 浏览器</small>
                     </div>
-                `;
-            }
+                </div>
+            `;
+            statusDiv.className = 'audio-status format-error';
+        }
+
+        // 禁用播放按钮
+        const playBtn = controlsContainer.querySelector('.play-btn');
+        if (playBtn) {
+            playBtn.disabled = true;
+            playBtn.classList.add('disabled');
         }
     },
 
@@ -3632,35 +3695,47 @@ function resolveAudioFilePath(audioFile) {
 function getBasePath() {
     const currentPath = window.location.pathname;
     const currentOrigin = window.location.origin;
+    const currentHash = window.location.hash;
 
     // 检测是否为GitHub Pages部署
     const isGitHubPages = currentOrigin.includes('github.io');
 
     if (isGitHubPages) {
-        // 对于GitHub Pages，始终使用绝对路径
+        // 对于GitHub Pages，需要考虑hash路由的影响
         if (currentPath.includes('/jyut')) {
-            // 提取到 /jyut/ 的路径
-            const jyutIndex = currentPath.indexOf('/jyut');
-            const basePath = currentPath.substring(0, jyutIndex + 5); // +5 for '/jyut'
-            return currentOrigin + (basePath.endsWith('/') ? basePath : basePath + '/');
+            // 如果有hash路由（如 #Class01/A），使用相对路径
+            if (currentHash && currentHash.includes('/')) {
+                // 对于 #Class01/A 这样的路由，需要 ../../
+                return '../../';
+            }
+
+            // 没有hash路由时，使用当前目录
+            return './';
         }
         // 如果没有找到 /jyut，假设在根目录
-        return currentOrigin + '/';
+        return './';
     }
 
     // 对于本地开发或其他部署
     if (currentPath === '/' || currentPath === '/index.html') {
+        // 如果有hash路由，需要相对路径
+        if (currentHash && currentHash.includes('/')) {
+            // 对于本地开发，hash路由需要 ../../
+            return '../../';
+        }
         return './';
     }
 
     // 对于子目录部署，使用相对路径
     const pathSegments = currentPath.split('/').filter(segment => segment.length > 0);
-    if (pathSegments.length > 1) {
-        // 回到根目录
-        return '../'.repeat(pathSegments.length - 1);
+    let backSteps = pathSegments.length > 1 ? pathSegments.length - 1 : 0;
+
+    // 如果有hash路由，需要额外的回退步数
+    if (currentHash && currentHash.includes('/')) {
+        backSteps += 2; // hash路由增加两层（对应 ../../）
     }
 
-    return './';
+    return backSteps > 0 ? '../'.repeat(backSteps) : './';
 }
 
 // 用户友好的错误提示
