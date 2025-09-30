@@ -1,0 +1,26 @@
+{
+  "id": "Class01",
+  "name": "第一课",
+  "partA": [
+    {
+      "paragraph": 1,
+      "originalText": "你好，欢迎学习粤语！",
+      "jyutping": "nei5 hou2, fun1 jing4 hok6 zaap6 jyut6 jyu5!",
+      "audioFile": "Sound/Class01/a_1.opus"
+    }
+  ],
+  "partB": [
+    {
+      "paragraph": 1,
+      "originalText": "我是学生，我来自香港。",
+      "jyutping": "ngo5 si6 hok6 saang1, ngo5 lai4 zi6 hoeng1 gong2.",
+      "audioFile": "Sound/Class01/b_1.opus"
+    },
+    {
+      "paragraph": 2,
+      "originalText": "你是老师吗？你教什么科目？",
+      "jyutping": "nei5 si6 lou5 si1 maa3? nei5 gaau3 sam6 mo1 fo1 muk6?",
+      "audioFile": "Sound/Class01/b_2.opus"
+    }
+  ]
+}

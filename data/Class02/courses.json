@@ -1,0 +1,32 @@
+{
+  "id": "Class02",
+  "name": "第二课",
+  "partA": [
+    {
+      "paragraph": 1,
+      "originalText": "早晨好",
+      "jyutping": "zou2 san4 hou2",
+      "audioFile": "Sound/Class02/a_1.opus"
+    },
+    {
+      "paragraph": 2,
+      "originalText": "今天天气怎么样",
+      "jyutping": "gam1 tin1 tin1 hei3 zam2 mo1 joeng6",
+      "audioFile": "Sound/Class02/a_2.opus"
+    }
+  ],
+  "partB": [
+    {
+      "paragraph": 1,
+      "originalText": "今天天气很好，阳光明媚。",
+      "jyutping": "gam1 tin1 tin1 hei3 han2 hou2, joeng4 gwong1 ming4 mei6.",
+      "audioFile": "Sound/Class02/b_1.opus"
+    },
+    {
+      "paragraph": 2,
+      "originalText": "我们去公园散步，呼吸新鲜空气。",
+      "jyutping": "ngo5 mun4 heoi3 gung1 jyun2 saan3 bou6, fu1 kap1 san1 sin1 hung1 hei3.",
+      "audioFile": "Sound/Class02/b_2.opus"
+    }
+  ]
+}
