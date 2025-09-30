@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>粤语教学网站</title>
+    <meta name="description" content="粤语学习辅助网站，提供课程分类、原文粤拼对照和音频播放功能">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 网站标题 -->
+        <header class="header" role="banner">
+            <div class="header-content">
+                <h1 class="header-title">粤语教学网站</h1>
+                <p class="header-subtitle">学习粤语发音的辅助工具</p>
+                <nav class="header-nav" role="navigation" aria-label="主导航">
+                    <ul class="nav-list">
+                        <li><a href="#courses" class="nav-link">课程列表</a></li>
+                        <li><a href="#content" class="nav-link">学习内容</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <!-- 课程列表区域 -->
+        <section id="courses" class="course-list">
+            <div class="section-header">
+                <h2>课程列表</h2>
+                <p class="section-subtitle">选择课程和部分开始学习</p>
+            </div>
+            <div id="course-container" class="course-container">
+                <!-- 课程项目将通过JavaScript动态生成 -->
+                <div class="loading-placeholder">
+                    <div class="loading-spinner"></div>
+                    <p>正在加载课程...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 内容显示区域 -->
+        <section id="content" class="content-display">
+            <div class="section-header">
+                <h2>学习内容</h2>
+                <div id="content-breadcrumb" class="content-breadcrumb">
+                    <span>请选择一个课程和部分开始学习</span>
+                </div>
+            </div>
+            <div id="content-container" class="content-container">
+                <div class="welcome-state">
+                    <div class="welcome-icon">🎯</div>
+                    <h3>开始学习粤语</h3>
+                    <p>从左侧课程列表中选择一个课程和部分，即可开始学习粤语发音。</p>
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <span class="feature-icon">📝</span>
+                            <span>原文和粤拼对照</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🔊</span>
+                            <span>标准发音音频</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📱</span>
+                            <span>响应式设计</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 调试信息区域 -->
+        <section class="debug-info" style="margin-top: 2rem; padding: 1rem; background: #f5f5f5; border-radius: 5px;">
+            <h3>调试信息</h3>
+            <div id="debug-container">
+                <p>正在加载...</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- 引入JavaScript文件 -->
+    <script src="js/app.js"></script>
+</body>
+</html>

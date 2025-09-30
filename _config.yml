@@ -1,0 +1,30 @@
+# GitHub Pages configuration for 粤语教学网站
+
+# Site settings
+title: 粤语教学网站
+description: 粤语学习辅助网站，提供课程分类、原文粤拼对照和音频播放功能
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Include files and directories
+include:
+  - Sound/
+  - css/
+  - js/
+  - data/
+
+# Exclude files from processing
+exclude:
+  - README.md
+  - .gitignore
+  - .DS_Store
+
+# Plugins
+plugins:
+  - jekyll-sitemap
+
+# MIME types for audio files
+plugins:
+  - jekyll-optional-front-matter

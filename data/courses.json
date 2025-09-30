@@ -1,0 +1,50 @@
+{
+  "courses": [
+    {
+      "id": "Class01",
+      "name": "第一课",
+      "partA": {
+        "originalText": "你好，欢迎学习粤语！",
+        "jyutping": "nei5 hou2, fun1 jing4 hok6 zaap6 jyut6 jyu5!",
+        "audioFile": "Sound/Class01/a.opus"
+      },
+      "partB": [
+        {
+          "paragraph": 1,
+          "originalText": "我是学生，我来自香港。",
+          "jyutping": "ngo5 si6 hok6 saang1, ngo5 lai4 zi6 hoeng1 gong2.",
+          "audioFile": "Sound/Class01/b_1.opus"
+        },
+        {
+          "paragraph": 2,
+          "originalText": "你是老师吗？你教什么科目？",
+          "jyutping": "nei5 si6 lou5 si1 maa3? nei5 gaau3 sam6 mo1 fo1 muk6?",
+          "audioFile": "Sound/Class01/b_2.opus"
+        }
+      ]
+    },
+    {
+      "id": "Class02",
+      "name": "第二课",
+      "partA": {
+        "originalText": "早晨好！今天天气怎么样？",
+        "jyutping": "zou2 san4 hou2! gam1 tin1 tin1 hei3 zam2 mo1 joeng6?",
+        "audioFile": "Sound/Class02/a.opus"
+      },
+      "partB": [
+        {
+          "paragraph": 1,
+          "originalText": "今天天气很好，阳光明媚。",
+          "jyutping": "gam1 tin1 tin1 hei3 han2 hou2, joeng4 gwong1 ming4 mei6.",
+          "audioFile": "Sound/Class02/b_1.opus"
+        },
+        {
+          "paragraph": 2,
+          "originalText": "我们去公园散步，呼吸新鲜空气。",
+          "jyutping": "ngo5 mun4 heoi3 gung1 jyun2 saan3 bou6, fu1 kap1 san1 sin1 hung1 hei3.",
+          "audioFile": "Sound/Class02/b_2.opus"
+        }
+      ]
+    }
+  ]
+}
