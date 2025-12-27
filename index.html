@@ -4,70 +4,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粤语练习网站</title>
-    <meta name="description" content="粤语学习辅助网站，提供精品课程原文粤拼对照及音频播放功能">
+    <title>数字发音卡片</title>
+    <meta name="description" content="点击卡片播放对应数字音频（粤语/普通话音频放置于 sound/ 目录）。">
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
-    <div class="container">
-        <!-- 网站标题 -->
-        <header class="header" role="banner">
-            <div class="header-content">
-                <h1 class="header-title">粤语练习网站</h1>
-                <p class="header-subtitle">浙江大学学生粤语社</p>
-                <nav class="header-nav" role="navigation" aria-label="主导航">
-                </nav>
-            </div>
+    <img src="pic/Cantonese.png" alt="Cantonese" class="top-left-logo">
+    <main class="wrap">
+        <header class="site-header">
+            <h1>粤语体验活动</h1>
+            <p class="subtitle">浙江大学学生粤语社学生节活动</p>
         </header>
 
-        <!-- 课程列表区域 -->
-        <section id="courses" class="course-list">
-            <div class="section-header">
-                <h2>课程列表</h2>
-            </div>
-            <div id="course-container" class="course-container">
-                <!-- 课程项目将通过JavaScript动态生成 -->
-                <div class="loading-placeholder">
-                    <div class="loading-spinner"></div>
-                    <p>正在加载课程...</p>
-                </div>
+        <section class="cards-section" aria-label="数字卡片">
+            <div class="cards" id="cards">
+                <button class="card" data-audio="sound/01.opus" aria-label="一">一</button>
+                <button class="card" data-audio="sound/02.opus" aria-label="二">二</button>
+                <button class="card" data-audio="sound/03.opus" aria-label="三">三</button>
+                <button class="card" data-audio="sound/04.opus" aria-label="四">四</button>
+                <button class="card" data-audio="sound/05.opus" aria-label="五">五</button>
+                <button class="card" data-audio="sound/06.opus" aria-label="六">六</button>
+                <button class="card" data-audio="sound/07.opus" aria-label="七">七</button>
+                <button class="card" data-audio="sound/08.opus" aria-label="八">八</button>
+                <button class="card" data-audio="sound/09.opus" aria-label="九">九</button>
+                <button class="card" data-audio="sound/10.opus" aria-label="十">十</button>
             </div>
         </section>
 
-        <!-- 内容显示区域 -->
-        <section id="content" class="content-display">
-            <div class="section-header">
-                <h2>学习内容</h2>
-                <div id="content-breadcrumb" class="content-breadcrumb">
-                    <span>请选择一个课程和部分开始学习</span>
-                </div>
-            </div>
-            <div id="content-container" class="content-container">
-                <div class="welcome-state">
-                    <h3>开始学习粤语</h3>
-                    <p>从上方课程列表中选择一个课程和部分，即可开始练习</p>
-                    <div class="feature-list">
-                        <div class="feature-item">
-                            <span class="feature-icon">📝</span>
-                            <span>原文和粤拼对照</span>
-                        </div>
-                        <div class="feature-item">
-                            <span class="feature-icon">🔊</span>
-                            <span>发音音频</span>
-                        </div>
-                        <div class="feature-item">
-                            <span class="feature-icon">📱</span>
-                            <span>响应式设计</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </div>
+        <footer class="site-footer">
+            <small>点击卡片播放对应粤语音频</small>
+        </footer>
+    </main>
 
-    <!-- 引入JavaScript文件 -->
-    <script src="js/app.js"></script>
+    <script src="js/main.js" defer></script>
 </body>
 
 </html>
